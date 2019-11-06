@@ -56,7 +56,7 @@ discovery-proxy:
 discovery-srv:
 
 # Initial cluster configuration for bootstrapping.
-initial-cluster: node1=http://127.0.0.1:2380,node2=http://127.0.0.1:22380,node3=http://127.0.0.1:32380
+initial-cluster: node1=http://127.0.0.1:12380,node2=http://127.0.0.1:22380,node3=http://127.0.0.1:32380
 
 # Initial cluster token for the etcd cluster during bootstrap.
 initial-cluster-token: 'etcd-cluster'
