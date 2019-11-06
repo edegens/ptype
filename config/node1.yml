@@ -21,7 +21,7 @@ election-timeout: 1000
 quota-backend-bytes: 0
 
 # List of comma separated URLs to listen on for peer traffic.
-listen-peer-urls: http://localhost:2380
+listen-peer-urls: http://localhost:12380
 
 # List of comma separated URLs to listen on for client traffic.
 listen-client-urls: http://localhost:2379
@@ -37,7 +37,7 @@ cors:
 
 # List of this member's peer URLs to advertise to the rest of the cluster.
 # The URLs needed to be a comma-separated list.
-initial-advertise-peer-urls: http://localhost:2380
+initial-advertise-peer-urls: http://localhost:12380
 
 # List of this member's client URLs to advertise to the public.
 # The URLs needed to be a comma-separated list.
@@ -56,7 +56,7 @@ discovery-proxy:
 discovery-srv:
 
 # Initial cluster configuration for bootstrapping.
-initial-cluster: node1=http://localhost:2380,node2=http://localhost:12380,node3=http://localhost:22380
+initial-cluster: node1=http://localhost:12380,node2=http://localhost:22380,node3=http://localhost:32380
 
 # Initial cluster token for the etcd cluster during bootstrap.
 initial-cluster-token: 'etcd-cluster'
