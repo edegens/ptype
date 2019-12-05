@@ -1,0 +1,2 @@
+service_name: 5
+etcd_config_path: non-existent
