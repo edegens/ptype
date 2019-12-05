@@ -80,7 +80,7 @@ func (sr *ServiceRegistry) Services() []string {
 	defer sr.lock.RUnlock()
 
 	services := make([]string, 0, len(sr.services))
-	for service, _ := range sr.services {
+	for service := range sr.services {
 		services = append(services, service)
 	}
 	return services
@@ -108,7 +108,7 @@ func (sr *ServiceRegistry) syncAll(ctx context.Context) error {
 	updatedServices := make(map[string][]Node, len(services))
 	for _, service := range services {
 		nodes := service.Nodes
-		updatedServices[service.Key] = make([]Node, len(nodes), len(nodes))
+		updatedServices[service.Key] = make([]Node, len(nodes))
 
 		for index, node := range nodes {
 			ins := updatedServices[service.Key][index]
