@@ -56,7 +56,6 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName s
 var defaultGetOptions = &client.GetOptions{
 	Recursive: true,
 	Sort:      true,
-	Quorum:    true,
 }
 
 func (sr *ServiceRegistry) Services(ctx context.Context) (map[string][]Node, error) {
