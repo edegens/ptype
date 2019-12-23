@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
-	"strings"
-	"sync"
+	"path/filepath"
 
 	"go.etcd.io/etcd/client"
 )
@@ -17,14 +15,6 @@ const servicesPrefix = "services"
 type Node struct {
 	Address string `json:"address"`
 	Port    int    `json:"port"`
-}
-
-func (i *Node) jsonString() (string, error) {
-	bytes, err := json.Marshal(i)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal node: %w", err)
-	}
-	return string(bytes), nil
 }
 
 type ServiceRegistry struct {
@@ -44,24 +34,19 @@ func NewServiceRegistry(ctx context.Context, etcdAddr string) (*ServiceRegistry,
 }
 
 func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName string, port int) error {
-	path := []string{servicesPrefix, serviceName, nodeName}
-	key := strings.Join(path, "/")
-
 	host, err := os.Hostname()
 	if err != nil {
 		return fmt.Errorf("failed to read hostname: %w", err)
 	}
 
-	node := Node{
-		Address: host,
-		Port:    port,
-	}
-	val, err := node.jsonString()
+	node := Node{Address: host, Port: port}
+	val, err := json.Marshal(node)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal node: %w", err)
 	}
 
-	if _, err = sr.kapi.Set(ctx, key, val, nil); err != nil {
+	key := filepath.Join(servicesPrefix, serviceName, nodeName)
+	if _, err = sr.kapi.Set(ctx, key, string(val), nil); err != nil {
 		return fmt.Errorf("failed to register node: %w", err)
 	}
 
