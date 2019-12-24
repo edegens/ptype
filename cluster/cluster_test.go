@@ -20,13 +20,8 @@ func TestJoin_registers_all_nodes(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("test registery contains expected services", func(t *testing.T) {
-		expected := []string{
-			"/services/ping",
-		}
-		require.Equal(t, expected, c.Registry.Services())
-	})
-
-	// TODO
-	t.Run("test registery contains expected nodes per service", func(t *testing.T) {
+		services, err := c.Registry.Services(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, services["ping"])
 	})
 }
