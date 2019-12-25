@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestJoin_registers_all_nodes(t *testing.T) {
+func TestJoin(t *testing.T) {
 	cfg, err := ConfigFromFile("./testdata/ping.yml")
 	require.NoError(t, err)
 

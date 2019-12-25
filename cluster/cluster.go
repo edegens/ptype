@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"go.etcd.io/etcd/embed"
 )
@@ -22,7 +23,11 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	if err := registry.Register(ctx, cfg.ServiceName, cfg.NodeName, cfg.Port); err != nil {
+	host, err := os.Hostname()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read hostname: %w", err)
+	}
+	if err := registry.Register(ctx, cfg.ServiceName, cfg.NodeName, host, cfg.Port); err != nil {
 		return nil, err
 	}
 
