@@ -10,10 +10,12 @@ import (
 
 type Cluster struct {
 	Registry *ServiceRegistry
+	etcd     *embed.Etcd
 }
 
 func Join(ctx context.Context, cfg Config) (*Cluster, error) {
-	if _, err := startEmbeddedEtcd(cfg.etcdConfig); err != nil {
+	e, err := startEmbeddedEtcd(cfg.etcdConfig)
+	if err != nil {
 		return nil, err
 	}
 
@@ -31,7 +33,16 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	return &Cluster{registry}, nil
+	return &Cluster{
+		Registry: registry,
+		etcd:     e,
+	}, nil
+}
+
+func (c *Cluster) Close() error {
+	c.etcd.Close()
+	<-c.etcd.Server.StopNotify()
+	return nil
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
