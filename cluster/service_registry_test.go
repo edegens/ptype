@@ -103,7 +103,6 @@ func TestServiceRegistry_Services(t *testing.T) {
 }
 
 func startTestEtcd() (string, func()) {
-	// TODO set no etcd logs in tests
 	cfg := embed.NewConfig()
 
 	tmp, err := ioutil.TempDir("", "test_etcd")
