@@ -22,6 +22,6 @@ func TestJoin(t *testing.T) {
 	t.Run("test registery contains expected services", func(t *testing.T) {
 		services, err := c.Registry.Services(ctx)
 		require.NoError(t, err)
-		require.NotEmpty(t, services["ping"])
+		require.NotEmpty(t, services["services/ping/node1"])
 	})
 }

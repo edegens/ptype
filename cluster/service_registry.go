@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+    "time"
 
-	"go.etcd.io/etcd/client"
+	"go.etcd.io/etcd/clientv3"
 )
 
 const servicesPrefix = "services"
@@ -17,18 +18,21 @@ type Node struct {
 }
 
 type ServiceRegistry struct {
-	kapi client.KeysAPI
+	KV clientv3.KV
 }
 
 func NewServiceRegistry(ctx context.Context, etcdAddr string) (*ServiceRegistry, error) {
-	cfg := client.Config{Endpoints: []string{etcdAddr}}
-	c, err := client.New(cfg)
+	cfg := clientv3.Config{
+        Endpoints: []string{etcdAddr},
+        DialTimeout: 5 * time.Second,
+    }
+	c, err := clientv3.New(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from addr %v: %w", etcdAddr, err)
 	}
 
 	return &ServiceRegistry{
-		kapi: client.NewKeysAPI(c),
+		KV: clientv3.NewKV(c),
 	}, nil
 }
 
@@ -40,38 +44,28 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName, 
 	}
 
 	key := filepath.Join(servicesPrefix, serviceName, nodeName)
-	if _, err = sr.kapi.Set(ctx, key, string(val), nil); err != nil {
+    fmt.Println("key:", key)
+	if _, err = sr.KV.Put(ctx, key, string(val)); err != nil {
 		return fmt.Errorf("failed to register node: %w", err)
 	}
 
 	return nil
 }
 
-var defaultGetOptions = &client.GetOptions{
-	Recursive: true,
-	Sort:      true,
-}
-
-func (sr *ServiceRegistry) Services(ctx context.Context) (map[string][]Node, error) {
-	res, err := sr.kapi.Get(ctx, servicesPrefix, defaultGetOptions)
+func (sr *ServiceRegistry) Services(ctx context.Context) (map[string]Node, error) {
+    res, err := sr.KV.Get(ctx, servicesPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get services from etcd: %w", err)
 	}
 
-	serviceDir := res.Node.Nodes
-	services := make(map[string][]Node, len(serviceDir))
-	for _, service := range serviceDir {
-		nodes := service.Nodes
-		_, key := filepath.Split(service.Key)
-		services[key] = make([]Node, 0, len(nodes))
-
-		for _, node := range nodes {
-			var n Node
-			if err := json.Unmarshal([]byte(node.Value), &n); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal service nodes: %w", err)
-			}
-			services[key] = append(services[key], n)
-		}
+    var node Node
+    serviceDir := res.Kvs
+    services := make(map[string]Node, len(serviceDir))
+	for _, Kvs := range serviceDir {
+        if err := json.Unmarshal([]byte(Kvs.Value), &node); err != nil {
+            return nil, fmt.Errorf("Failed to unmarshal services nodes: %w", err)
+        }
+        services[string(Kvs.Key)] = node 
 	}
 
 	return services, nil
