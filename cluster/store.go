@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"go.etcd.io/etcd/client"
-	"path/filepath"
 )
 
 const storePrefix = "store"
