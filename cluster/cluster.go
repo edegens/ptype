@@ -10,6 +10,7 @@ import (
 
 type Cluster struct {
 	Registry *ServiceRegistry
+	Store    *KVStore
 	etcd     *embed.Etcd
 }
 
