@@ -3,7 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"github.com/coreos/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3"
 )
 
 type KVStore struct {
@@ -16,7 +16,6 @@ func NewKVStore(ctx context.Context, etcdAddr string) (*KVStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from addr %v: %w", etcdAddr, err)
 	}
-	defer c.Close()
 
 	return &KVStore{
 		kv: clientv3.NewKV(c),
