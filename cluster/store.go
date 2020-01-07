@@ -3,23 +3,22 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"go.etcd.io/etcd/client"
+	"github.com/coreos/etcd/clientv3"
 )
 
-const storePrefix = "store"
-
 type KVStore struct {
-	kapi client.KeysAPI
+	kv clientv3.KV
 }
 
 func NewKVStore(ctx context.Context, etcdAddr string) (*KVStore, error) {
-	cfg := client.Config{Endpoints: []string{etcdAddr}}
-	c, err := client.New(cfg)
+	cfg := clientv3.Config{Endpoints: []string{etcdAddr}}
+	c, err := clientv3.New(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from addr %v: %w", etcdAddr, err)
 	}
+	defer c.Close()
 
 	return &KVStore{
-		kapi: client.NewKeysAPI(c),
+		kv: clientv3.NewKV(c),
 	}, nil
 }
