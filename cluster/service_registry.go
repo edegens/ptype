@@ -60,12 +60,12 @@ func (sr *ServiceRegistry) Services(ctx context.Context) (map[string][]Node, err
 
 	var node Node
 	services := make(map[string][]Node)
-	for _, Kvs := range res.Kvs {
-		if err := json.Unmarshal([]byte(Kvs.Value), &node); err != nil {
+	for _, kvs := range res.Kvs {
+		if err := json.Unmarshal([]byte(kvs.Value), &node); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal services nodes: %w", err)
 		}
 
-		key := strings.Split(string(Kvs.Key), "/")
+		key := strings.Split(string(kvs.Key), "/")
 		if len(key) > 1 {
 			service := key[1]
 			if _, ok := services[service]; !ok {
