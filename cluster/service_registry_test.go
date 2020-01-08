@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/client"
+	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/embed"
 )
 
@@ -42,29 +41,34 @@ func TestServiceRegistry_Register(t *testing.T) {
 
 	t.Run("test multiple nodes registered for foo", func(t *testing.T) {
 		key := filepath.Join(servicesPrefix, "foo")
-		res, err := sr.kapi.Get(ctx, key, defaultGetOptions)
+		res, err := sr.KV.Get(ctx, key, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
 		require.NoError(t, err)
 
-		require.Len(t, res.Node.Nodes, 2)
+		require.Len(t, res.Kvs, 2)
 
 		expected := []string{
 			`{"address":"host", "port":8000}`,
 			`{"address":"host2", "port":8000}`,
 		}
-		for i, node := range res.Node.Nodes {
-			require.JSONEq(t, expected[i], node.Value)
+		for i, Kvs := range res.Kvs {
+			require.JSONEq(t, expected[i], string(Kvs.Value))
 		}
 	})
 
 	t.Run("test one node registered for bar", func(t *testing.T) {
 		key := filepath.Join(servicesPrefix, "bar")
-		res, err := sr.kapi.Get(ctx, key, defaultGetOptions)
+		res, err := sr.KV.Get(ctx, key, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
 		require.NoError(t, err)
 
-		require.Len(t, res.Node.Nodes, 1)
+		require.Len(t, res.Kvs, 1)
 
-		expected := `{"address":"host3", "port":3000}`
-		require.JSONEq(t, expected, res.Node.Nodes[0].Value)
+		expected := []string{
+            `{"address":"host3", "port":3000}`,
+        }
+
+        for i, Kvs := range res.Kvs {
+            require.JSONEq(t, expected[i], string(Kvs.Value))
+        }
 	})
 }
 
@@ -78,13 +82,13 @@ func TestServiceRegistry_Services(t *testing.T) {
 	require.NoError(t, err)
 
 	key := filepath.Join(servicesPrefix, "foo", "node1")
-	_, err = sr.kapi.Set(ctx, key, `{"address":"host", "port":8000}`, nil)
+	_, err = sr.KV.Put(ctx, key, `{"address":"host", "port":8000}`)
 	require.NoError(t, err)
 	key = filepath.Join(servicesPrefix, "foo", "node2")
-	_, err = sr.kapi.Set(ctx, key, `{"address":"host2", "port":8000}`, nil)
+	_, err = sr.KV.Put(ctx, key, `{"address":"host2", "port":8000}`)
 	require.NoError(t, err)
 	key = filepath.Join(servicesPrefix, "bar", "node3")
-	_, err = sr.kapi.Set(ctx, key, `{"address":"host3", "port":3000}`, nil)
+	_, err = sr.KV.Put(ctx, key, `{"address":"host3", "port":3000}`)
 	require.NoError(t, err)
 
 	actual, err := sr.Services(ctx)
@@ -125,18 +129,14 @@ func startTestEtcd() (string, func()) {
 }
 
 func cleanEtcdDir(t *testing.T) {
-	c, err := client.New(client.Config{Endpoints: []string{TestEtcdAddr}})
+	c, err := clientv3.New(clientv3.Config{Endpoints: []string{TestEtcdAddr}})
 	require.NoError(t, err)
-	kapi := client.NewKeysAPI(c)
+	KV := clientv3.NewKV(c)
 	// wipe services dir for every test
-	_, err = kapi.Delete(context.Background(), servicesPrefix, &client.DeleteOptions{
-		Recursive: true,
-		Dir:       true,
-	})
+	_, err = KV.Delete(context.Background(), servicesPrefix, clientv3.WithPrefix())
+    if err != nil {
+        return
+    }
 
-	var cErr client.Error
-	if errors.As(err, &cErr) && cErr.Code == client.ErrorCodeKeyNotFound {
-		return
-	}
 	require.NoError(t, err)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+    "strings"
 	"time"
 
 	"go.etcd.io/etcd/clientv3"
@@ -51,20 +52,27 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName s
 	return nil
 }
 
-func (sr *ServiceRegistry) Services(ctx context.Context) (map[string]Node, error) {
-	res, err := sr.KV.Get(ctx, servicesPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
+func (sr *ServiceRegistry) Services(ctx context.Context) (map[string][]Node, error) {
+	res, err := sr.KV.Get(ctx, servicesPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get services from etcd: %w", err)
 	}
 
 	var node Node
-	serviceDir := res.Kvs
-	services := make(map[string]Node, len(serviceDir))
-	for _, Kvs := range serviceDir {
+	services := make(map[string][]Node)
+	for _, Kvs := range res.Kvs {
 		if err := json.Unmarshal([]byte(Kvs.Value), &node); err != nil {
-			return nil, fmt.Errorf("Failed to unmarshal services nodes: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal services nodes: %w", err)
 		}
-		services[string(Kvs.Key)] = node
+
+        key := strings.Split(string(Kvs.Key), "/") 
+        if len(key) > 1 {
+            service := key[1]
+            if _, ok := services[service]; !ok {
+                services[service] = make([]Node, 0)
+            }
+            services[service] = append(services[service], node)
+        }
 	}
 
 	return services, nil
