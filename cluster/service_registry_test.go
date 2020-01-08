@@ -41,7 +41,7 @@ func TestServiceRegistry_Register(t *testing.T) {
 
 	t.Run("test multiple nodes registered for foo", func(t *testing.T) {
 		key := filepath.Join(servicesPrefix, "foo")
-		res, err := sr.KV.Get(ctx, key, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		res, err := sr.KV.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
 		require.Len(t, res.Kvs, 2)

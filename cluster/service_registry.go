@@ -52,8 +52,13 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName, 
 	return nil
 }
 
+var defaultGetOptions = []clientv3.OpOption{
+	clientv3.WithPrefix(),
+	clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
+}
+
 func (sr *ServiceRegistry) Services(ctx context.Context) (map[string][]Node, error) {
-	res, err := sr.KV.Get(ctx, servicesPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	res, err := sr.KV.Get(ctx, servicesPrefix, defaultGetOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get services from etcd: %w", err)
 	}
