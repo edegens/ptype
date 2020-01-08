@@ -63,12 +63,12 @@ func TestServiceRegistry_Register(t *testing.T) {
 		require.Len(t, res.Kvs, 1)
 
 		expected := []string{
-            `{"address":"host3", "port":3000}`,
-        }
+			`{"address":"host3", "port":3000}`,
+		}
 
-        for i, Kvs := range res.Kvs {
-            require.JSONEq(t, expected[i], string(Kvs.Value))
-        }
+		for i, Kvs := range res.Kvs {
+			require.JSONEq(t, expected[i], string(Kvs.Value))
+		}
 	})
 }
 
@@ -134,9 +134,9 @@ func cleanEtcdDir(t *testing.T) {
 	KV := clientv3.NewKV(c)
 	// wipe services dir for every test
 	_, err = KV.Delete(context.Background(), servicesPrefix, clientv3.WithPrefix())
-    if err != nil {
-        return
-    }
+	if err != nil {
+		return
+	}
 
 	require.NoError(t, err)
 }

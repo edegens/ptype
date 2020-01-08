@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-    "strings"
+	"strings"
 	"time"
 
 	"go.etcd.io/etcd/clientv3"
@@ -65,14 +65,14 @@ func (sr *ServiceRegistry) Services(ctx context.Context) (map[string][]Node, err
 			return nil, fmt.Errorf("failed to unmarshal services nodes: %w", err)
 		}
 
-        key := strings.Split(string(Kvs.Key), "/") 
-        if len(key) > 1 {
-            service := key[1]
-            if _, ok := services[service]; !ok {
-                services[service] = make([]Node, 0)
-            }
-            services[service] = append(services[service], node)
-        }
+		key := strings.Split(string(Kvs.Key), "/")
+		if len(key) > 1 {
+			service := key[1]
+			if _, ok := services[service]; !ok {
+				services[service] = make([]Node, 0)
+			}
+			services[service] = append(services[service], node)
+		}
 	}
 
 	return services, nil
