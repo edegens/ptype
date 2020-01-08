@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -37,12 +36,7 @@ func NewServiceRegistry(ctx context.Context, etcdAddr string) (*ServiceRegistry,
 	}, nil
 }
 
-func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName string, port int) error {
-	host, err := os.Hostname()
-	if err != nil {
-		return fmt.Errorf("failed to read hostname: %w", err)
-	}
-
+func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName string, host string, port int) error {
 	node := Node{Address: host, Port: port}
 	val, err := json.Marshal(node)
 	if err != nil {
