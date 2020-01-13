@@ -29,7 +29,7 @@ func TestServiceRegistry_Register(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sr, err := NewServiceRegistry(ctx, TestEtcdAddr)
+	sr, err := newServiceRegistry(ctx, TestEtcdAddr)
 	require.NoError(t, err)
 
 	err = sr.Register(context.Background(), "foo", "node1", "host", 8000)
@@ -78,7 +78,7 @@ func TestServiceRegistry_Services(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sr, err := NewServiceRegistry(ctx, TestEtcdAddr)
+	sr, err := newServiceRegistry(ctx, TestEtcdAddr)
 	require.NoError(t, err)
 
 	key := filepath.Join(servicesPrefix, "foo", "node1")

@@ -8,12 +8,11 @@ import (
 
 type Client struct {
 	*rpc.Client
-	sr    *ServiceRegistry
-	nodes []Node
+	registry Registry
 }
 
-func NewClient(serviceName string, sr *ServiceRegistry) (*Client, error) {
-	serv, err := sr.Services(context.Background())
+func NewClient(serviceName string, r Registry) (*Client, error) {
+	serv, err := r.Services(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -31,8 +30,7 @@ func NewClient(serviceName string, sr *ServiceRegistry) (*Client, error) {
 	}
 
 	return &Client{
-		Client: client,
-		sr:     sr,
-		nodes:  nodes,
+		Client:   client,
+		registry: r,
 	}, nil
 }
