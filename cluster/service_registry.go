@@ -19,7 +19,8 @@ type Node struct {
 }
 
 type ServiceRegistry struct {
-	KV clientv3.KV
+	KV  clientv3.KV
+	cli *clientv3.Client
 }
 
 func NewServiceRegistry(ctx context.Context, etcdAddr string) (*ServiceRegistry, error) {
@@ -33,7 +34,8 @@ func NewServiceRegistry(ctx context.Context, etcdAddr string) (*ServiceRegistry,
 	}
 
 	return &ServiceRegistry{
-		KV: clientv3.NewKV(c),
+		KV:  clientv3.NewKV(c),
+		cli: c,
 	}, nil
 }
 
@@ -45,9 +47,23 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName, 
 	}
 
 	key := filepath.Join(servicesPrefix, serviceName, nodeName)
-	if _, err = sr.KV.Put(ctx, key, string(val)); err != nil {
+
+	// TODO: Discuss appripriate lease time, I chose 30seconds using no emierical data
+	resp, err := sr.cli.Grant(ctx, 30)
+	if err != nil {
+		return fmt.Errorf("failed to create lease for service: %w", err)
+	}
+
+	if _, err = sr.KV.Put(ctx, key, string(val), clientv3.WithLease(resp.ID)); err != nil {
 		return fmt.Errorf("failed to register node: %w", err)
 	}
+
+	keepAliveResp, err := sr.cli.KeepAlive(ctx, resp.ID)
+	if err != nil {
+		return fmt.Errorf("failed to keep service registered: %w", err)
+	}
+	kar := <-keepAliveResp
+	fmt.Printf("service %s refreshed and vaild for(ttl): %d \n", serviceName, kar.TTL)
 
 	return nil
 }
