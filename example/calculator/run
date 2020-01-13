@@ -1,0 +1,6 @@
+#!/bin/bash
+
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+
+CONFIG=./server/calculator_server.yaml go run server/server.go &
+CONFIG=./client/calculator_client.yaml go run client/client.go
