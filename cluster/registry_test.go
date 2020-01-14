@@ -9,27 +9,42 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/embed"
 )
 
-var TestEtcdAddr string
-
-func TestMain(m *testing.M) {
-	addr, cleanup := startTestEtcd()
-	defer cleanup()
-	TestEtcdAddr = addr
-
-	os.Exit(m.Run())
+func TestEtcdDependentSuite(t *testing.T) {
+	suite.Run(t, new(EtcdDependentSuite))
 }
 
-func TestServiceRegistry_Register(t *testing.T) {
-	cleanEtcdDir(t)
+type EtcdDependentSuite struct {
+	suite.Suite
+	testEtcdAddr string
+	cleanup      func()
+}
+
+func (suite *EtcdDependentSuite) SetupSuite() {
+	addr, cleanup := startTestEtcd()
+	suite.cleanup = cleanup
+	suite.testEtcdAddr = addr
+}
+
+func (suite *EtcdDependentSuite) TearDownSuite() {
+	suite.cleanup()
+}
+
+func (suite *EtcdDependentSuite) SetupTest() {
+	cleanEtcdDir(suite.T(), suite.testEtcdAddr)
+}
+
+func (suite *EtcdDependentSuite) TestServiceRegistry_Register() {
+	t := suite.T()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sr, err := newServiceRegistry(ctx, TestEtcdAddr)
+	sr, err := newServiceRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
 	err = sr.Register(context.Background(), "foo", "node1", "host", 8000)
@@ -72,13 +87,13 @@ func TestServiceRegistry_Register(t *testing.T) {
 	})
 }
 
-func TestServiceRegistry_Services(t *testing.T) {
-	cleanEtcdDir(t)
+func (suite *EtcdDependentSuite) TestServiceRegistry_Services() {
+	t := suite.T()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sr, err := newServiceRegistry(ctx, TestEtcdAddr)
+	sr, err := newServiceRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
 	key := filepath.Join(servicesPrefix, "foo", "node1")
@@ -128,8 +143,8 @@ func startTestEtcd() (string, func()) {
 	}
 }
 
-func cleanEtcdDir(t *testing.T) {
-	c, err := clientv3.New(clientv3.Config{Endpoints: []string{TestEtcdAddr}})
+func cleanEtcdDir(t *testing.T, testEtcdAddr string) {
+	c, err := clientv3.New(clientv3.Config{Endpoints: []string{testEtcdAddr}})
 	require.NoError(t, err)
 	KV := clientv3.NewKV(c)
 	// wipe services dir for every test
