@@ -38,13 +38,13 @@ func (suite *EtcdDependentSuite) SetupTest() {
 	cleanEtcdDir(suite.T(), suite.testEtcdAddr)
 }
 
-func (suite *EtcdDependentSuite) TestServiceRegistry_Register() {
+func (suite *EtcdDependentSuite) TestEtcdRegistry_Register() {
 	t := suite.T()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sr, err := newServiceRegistry(ctx, suite.testEtcdAddr)
+	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
 	err = sr.Register(context.Background(), "foo", "node1", "host", 8000)
@@ -72,7 +72,7 @@ func (suite *EtcdDependentSuite) TestServiceRegistry_Register() {
 
 	t.Run("test one node registered for bar", func(t *testing.T) {
 		key := filepath.Join(servicesPrefix, "bar")
-		res, err := sr.KV.Get(ctx, key, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		res, err := sr.KV.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
 		require.Len(t, res.Kvs, 1)
@@ -87,13 +87,13 @@ func (suite *EtcdDependentSuite) TestServiceRegistry_Register() {
 	})
 }
 
-func (suite *EtcdDependentSuite) TestServiceRegistry_Services() {
+func (suite *EtcdDependentSuite) TestEtcdRegistry_Services() {
 	t := suite.T()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sr, err := newServiceRegistry(ctx, suite.testEtcdAddr)
+	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
 	key := filepath.Join(servicesPrefix, "foo", "node1")

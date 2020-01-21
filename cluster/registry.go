@@ -23,11 +23,11 @@ type Node struct {
 	Port    int    `json:"port"`
 }
 
-type serviceRegistry struct {
+type etcdRegistry struct {
 	KV clientv3.KV
 }
 
-func newServiceRegistry(ctx context.Context, etcdAddr string) (*serviceRegistry, error) {
+func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error) {
 	cfg := clientv3.Config{
 		Endpoints:   []string{etcdAddr},
 		DialTimeout: 5 * time.Second,
@@ -37,12 +37,12 @@ func newServiceRegistry(ctx context.Context, etcdAddr string) (*serviceRegistry,
 		return nil, fmt.Errorf("failed to create etcd client from addr %v: %w", etcdAddr, err)
 	}
 
-	return &serviceRegistry{
+	return &etcdRegistry{
 		KV: clientv3.NewKV(c),
 	}, nil
 }
 
-func (sr *serviceRegistry) Register(ctx context.Context, serviceName, nodeName, host string, port int) error {
+func (er *etcdRegistry) Register(ctx context.Context, serviceName, nodeName, host string, port int) error {
 	node := Node{Address: host, Port: port}
 	val, err := json.Marshal(node)
 	if err != nil {
@@ -50,7 +50,7 @@ func (sr *serviceRegistry) Register(ctx context.Context, serviceName, nodeName, 
 	}
 
 	key := filepath.Join(servicesPrefix, serviceName, nodeName)
-	if _, err = sr.KV.Put(ctx, key, string(val)); err != nil {
+	if _, err = er.KV.Put(ctx, key, string(val)); err != nil {
 		return fmt.Errorf("failed to register node: %w", err)
 	}
 
@@ -62,8 +62,8 @@ var defaultGetOptions = []clientv3.OpOption{
 	clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
 }
 
-func (sr *serviceRegistry) Services(ctx context.Context) (map[string][]Node, error) {
-	res, err := sr.KV.Get(ctx, servicesPrefix, defaultGetOptions...)
+func (er *etcdRegistry) Services(ctx context.Context) (map[string][]Node, error) {
+	res, err := er.KV.Get(ctx, servicesPrefix, defaultGetOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get services from etcd: %w", err)
 	}

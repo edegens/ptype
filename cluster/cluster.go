@@ -21,7 +21,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}
 
 	clientURL := cfg.etcdConfig.LCUrls[0].String()
-	registry, err := newServiceRegistry(ctx, clientURL)
+	registry, err := newEtcdRegistry(ctx, clientURL)
 	if err != nil {
 		return nil, err
 	}
