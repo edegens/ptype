@@ -9,7 +9,7 @@ import (
 )
 
 type Cluster struct {
-	Registry *ServiceRegistry
+	Registry Registry
 	Store    *KVStore
 	etcd     *embed.Etcd
 }
@@ -21,7 +21,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}
 
 	clientURL := cfg.etcdConfig.LCUrls[0].String()
-	registry, err := NewServiceRegistry(ctx, clientURL)
+	registry, err := newEtcdRegistry(ctx, clientURL)
 	if err != nil {
 		return nil, err
 	}

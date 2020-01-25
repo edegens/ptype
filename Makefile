@@ -1,6 +1,6 @@
 test:
 	go test -v --race ./...
 
-simplify:
+lint:
 	gofmt -w -s */**.go
 	golangci-lint run
