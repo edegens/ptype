@@ -23,10 +23,10 @@ func NewClient(serviceName string, r Registry) (*Client, error) {
 	}
 
 	// naively pick first element; algorithm for choosing node can be improved
-	dailAddr := fmt.Sprintf("%v:%v", nodes[0].Address, nodes[0].Port)
-	client, err := rpc.DialHTTP("tcp", dailAddr)
+	dialAddr := fmt.Sprintf("%v:%v", nodes[0].Address, nodes[0].Port)
+	client, err := rpc.DialHTTP("tcp", dialAddr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial service address %v: %w", dailAddr, err)
+		return nil, fmt.Errorf("failed to dial service address %v: %w", dialAddr, err)
 	}
 
 	return &Client{
