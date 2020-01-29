@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -70,4 +71,21 @@ func TestNewClient_with_servers_failing_to_connect(t *testing.T) {
 	client, err := NewClient("foo", &mock)
 	require.Error(t, err)
 	require.Nil(t, client)
+}
+
+func TestNodeToDial_uses_random_node(t *testing.T) {
+	mock := mockRegistry{
+		services: map[string][]Node{
+			"foo": {
+				{Address: "127.0.0.1", Port: 1234},
+				{Address: "127.0.0.1", Port: 3000},
+				{Address: "127.0.0.1", Port: 4321},
+			},
+		},
+	}
+
+	rand.Seed(1)
+	node, err := nodeToDial("foo", &mock)
+	require.NoError(t, err)
+	require.Equal(t, mock.services["foo"][2], node)
 }
