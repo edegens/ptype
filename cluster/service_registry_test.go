@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/clientv3"
@@ -69,6 +70,42 @@ func TestServiceRegistry_Register(t *testing.T) {
 		for i, Kvs := range res.Kvs {
 			require.JSONEq(t, expected[i], string(Kvs.Value))
 		}
+	})
+}
+
+func TestServiceRegistry_Leases(t *testing.T) {
+	cleanEtcdDir(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	sr, err := NewServiceRegistry(ctx, TestEtcdAddr)
+	require.NoError(t, err)
+	err = sr.Register(ctx, "bar", "node1", "host", 8000)
+	require.NoError(t, err)
+
+	t.Run("test lease expires when context is canceled", func(t *testing.T) {
+		key := filepath.Join(servicesPrefix, "bar")
+		res, err := sr.KV.Get(ctx, key, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		require.NoError(t, err)
+
+		require.Len(t, res.Kvs, 1)
+
+		expected := []string{
+			`{"address":"host", "port":8000}`,
+		}
+
+		for i, Kvs := range res.Kvs {
+			require.JSONEq(t, expected[i], string(Kvs.Value))
+		}
+
+		cancel()
+
+		time.Sleep(time.Second * 5)
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		res, err = sr.KV.Get(ctx, key, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		require.NoError(t, err)
+
+		require.Len(t, res.Kvs, 0)
 	})
 }
 
