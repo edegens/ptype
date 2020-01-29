@@ -48,8 +48,8 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName, 
 
 	key := filepath.Join(servicesPrefix, serviceName, nodeName)
 
-	// TODO: Discuss appripriate lease time, I chose 30seconds using no emierical data
-	resp, err := sr.cli.Grant(ctx, 30)
+	// TODO: Discuss appripriate lease time, I chose 2 seconds using no imperical data
+	resp, err := sr.cli.Grant(ctx, 2)
 	if err != nil {
 		return fmt.Errorf("failed to create lease for service: %w", err)
 	}
@@ -62,8 +62,17 @@ func (sr *ServiceRegistry) Register(ctx context.Context, serviceName, nodeName, 
 	if err != nil {
 		return fmt.Errorf("failed to keep service registered: %w", err)
 	}
-	kar := <-keepAliveResp
-	fmt.Printf("service %s refreshed and vaild for(ttl): %d \n", serviceName, kar.TTL)
+	go func() {
+		for {
+			kar := <-keepAliveResp
+			if kar == nil {
+				fmt.Printf("service %s failed to refresh \n", serviceName)
+				break
+
+			}
+			fmt.Printf("service %s refreshed and vaild for(ttl): %d \n", serviceName, kar.TTL)
+		}
+	}()
 
 	return nil
 }
