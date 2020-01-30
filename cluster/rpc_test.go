@@ -88,4 +88,10 @@ func TestNodeToDial_uses_random_node(t *testing.T) {
 	node, err := nodeToDial("foo", &mock)
 	require.NoError(t, err)
 	require.Equal(t, mock.services["foo"][2], node)
+
+	// Use different seed
+	rand.Seed(3)
+	node, err = nodeToDial("foo", &mock)
+	require.NoError(t, err)
+	require.Equal(t, mock.services["foo"][1], node)
 }
