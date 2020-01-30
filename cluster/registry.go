@@ -24,7 +24,8 @@ type Node struct {
 }
 
 type etcdRegistry struct {
-	KV clientv3.KV
+	KV      clientv3.KV
+	watcher clientv3.Watcher
 }
 
 func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error) {
@@ -38,7 +39,8 @@ func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error
 	}
 
 	return &etcdRegistry{
-		KV: clientv3.NewKV(c),
+		KV:      clientv3.NewKV(c),
+		watcher: clientv3.NewWatcher(c),
 	}, nil
 }
 
@@ -86,4 +88,49 @@ func (er *etcdRegistry) Services(ctx context.Context) (map[string][]Node, error)
 	}
 
 	return services, nil
+}
+
+func (er *etcdRegistry) WatchService(ctx context.Context, serviceName string) chan []Node {
+	key := filepath.Join(servicesPrefix, serviceName)
+
+	nodesChan := make(chan []Node)
+	watchChan := er.watcher.Watch(ctx, key, clientv3.WithPrefix())
+	go func() {
+		defer close(nodesChan)
+		for {
+			select {
+			case res := <-watchChan:
+				if err := res.Err(); err != nil {
+					fmt.Printf("watching service %v, error occured: %v", serviceName, err)
+					return
+				}
+				nodes, err := er.nodes(ctx, serviceName)
+				if err != nil {
+					fmt.Printf("reading nodes for service %v, error occured: %v", serviceName, err)
+					continue
+				}
+				nodesChan <- nodes
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return nodesChan
+}
+
+func (er *etcdRegistry) nodes(ctx context.Context, serviceName string) ([]Node, error) {
+	key := filepath.Join(servicesPrefix, serviceName)
+	res, err := er.KV.Get(ctx, key, defaultGetOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get services from etcd: %w", err)
+	}
+
+	nodes := make([]Node, len(res.Kvs))
+	for i, kvs := range res.Kvs {
+		if err := json.Unmarshal([]byte(kvs.Value), &nodes[i]); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal services nodes: %w", err)
+		}
+	}
+	return nodes, nil
 }

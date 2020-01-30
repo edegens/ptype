@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -119,6 +120,51 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Services() {
 		},
 	}
 	require.Equal(t, expected, actual)
+}
+
+func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
+	t := suite.T()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	nodesChan := sr.WatchService(ctx, "foo")
+
+	key := filepath.Join(servicesPrefix, "foo", "node1")
+	_, err = sr.KV.Put(ctx, key, `{"address":"host", "port":8000}`)
+	require.NoError(t, err)
+
+	require.Equal(t, []Node{
+		{Address: "host", Port: 8000},
+	}, <-nodesChan)
+
+	key = filepath.Join(servicesPrefix, "foo", "node3")
+	_, err = sr.KV.Put(ctx, key, `{"address":"host3", "port":3000}`)
+	require.NoError(t, err)
+
+	require.Equal(t, []Node{
+		{Address: "host", Port: 8000},
+		{Address: "host3", Port: 3000},
+	}, <-nodesChan)
+}
+
+func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService_stops_with_context_cancel() {
+	t := suite.T()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	nodesChan := sr.WatchService(ctx, "foo")
+	cancel()
+
+	_, ok := <-nodesChan
+	require.False(t, ok)
 }
 
 func startTestEtcd() (string, func()) {
