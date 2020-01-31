@@ -57,7 +57,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Register() {
 
 	t.Run("test multiple nodes registered for foo", func(t *testing.T) {
 		key := filepath.Join(servicesPrefix, "foo")
-		res, err := sr.KV.Get(ctx, key, defaultGetOptions...)
+		res, err := sr.kv.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
 		require.Len(t, res.Kvs, 2)
@@ -73,7 +73,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Register() {
 
 	t.Run("test one node registered for bar", func(t *testing.T) {
 		key := filepath.Join(servicesPrefix, "bar")
-		res, err := sr.KV.Get(ctx, key, defaultGetOptions...)
+		res, err := sr.kv.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
 		require.Len(t, res.Kvs, 1)
@@ -98,13 +98,13 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Services() {
 	require.NoError(t, err)
 
 	key := filepath.Join(servicesPrefix, "foo", "node1")
-	_, err = sr.KV.Put(ctx, key, `{"address":"host", "port":8000}`)
+	_, err = sr.kv.Put(ctx, key, `{"address":"host", "port":8000}`)
 	require.NoError(t, err)
 	key = filepath.Join(servicesPrefix, "foo", "node2")
-	_, err = sr.KV.Put(ctx, key, `{"address":"host2", "port":8000}`)
+	_, err = sr.kv.Put(ctx, key, `{"address":"host2", "port":8000}`)
 	require.NoError(t, err)
 	key = filepath.Join(servicesPrefix, "bar", "node3")
-	_, err = sr.KV.Put(ctx, key, `{"address":"host3", "port":3000}`)
+	_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
 	require.NoError(t, err)
 
 	actual, err := sr.Services(ctx)
@@ -134,7 +134,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	nodesChan := sr.WatchService(ctx, "foo")
 
 	key := filepath.Join(servicesPrefix, "foo", "node1")
-	_, err = sr.KV.Put(ctx, key, `{"address":"host", "port":8000}`)
+	_, err = sr.kv.Put(ctx, key, `{"address":"host", "port":8000}`)
 	require.NoError(t, err)
 
 	require.Equal(t, []Node{
@@ -142,7 +142,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	}, <-nodesChan)
 
 	key = filepath.Join(servicesPrefix, "foo", "node3")
-	_, err = sr.KV.Put(ctx, key, `{"address":"host3", "port":3000}`)
+	_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
 	require.NoError(t, err)
 
 	require.Equal(t, []Node{
