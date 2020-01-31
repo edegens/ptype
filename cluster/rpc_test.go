@@ -23,6 +23,10 @@ func (m *mockRegistry) Services(ctx context.Context) (map[string][]Node, error) 
 	return m.services, m.err
 }
 
+func (m *mockRegistry) WatchService(ctx context.Context, serviceName string) chan []Node {
+	return make(chan []Node)
+}
+
 func TestNewClient(t *testing.T) {
 	rpc.HandleHTTP()
 	ts := http.Server{}

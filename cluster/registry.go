@@ -16,6 +16,7 @@ const servicesPrefix = "services"
 type Registry interface {
 	Register(ctx context.Context, serviceName, nodeName, host string, port int) error
 	Services(ctx context.Context) (map[string][]Node, error)
+	WatchService(ctx context.Context, serviceName string) chan []Node
 }
 
 type Node struct {
