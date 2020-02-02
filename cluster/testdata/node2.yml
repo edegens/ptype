@@ -19,7 +19,7 @@ initial-advertise-peer-urls: http://127.0.0.1:22380
 advertise-client-urls: http://127.0.0.1:22379
 
 # Initial cluster configuration for bootstrapping.
-initial-cluster: node1=http://127.0.0.1:22380
+initial-cluster: node2=http://127.0.0.1:22380
 
 # Initial cluster token for the etcd cluster during bootstrap.
 initial-cluster-token: 'etcd-cluster'
