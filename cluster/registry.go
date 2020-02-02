@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+    "log"
 	"path/filepath"
 	"strings"
 	"time"
 
+    "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"go.etcd.io/etcd/clientv3"
 )
 
@@ -137,4 +139,24 @@ func (er *etcdRegistry) nodes(ctx context.Context, serviceName string) ([]Node, 
 		}
 	}
 	return nodes, nil
+}
+
+func (er *etcdRegistry) MemberAdd(ctx context.Context, peerURLs []string) error {
+    mresp, err := er.Client.MemberAdd(ctx, peerURLs)
+    if err != nil {
+        return fmt.Errorf("failed to add members with peerURLs %v: %w", peerURLs, err)
+    }
+
+    log.Printf("added members with peerURLs %v\n", mresp.Member.PeerURLs)
+
+    return nil
+}
+
+func (er *etcdRegistry) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error) {
+    resp, err := er.Client.MemberList(ctx)
+    if err != nil {
+        return nil, fmt.Errorf("failed to retrieve member list: %w", err)
+    }
+
+    return resp.Members, nil
 }
