@@ -4,18 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-    "log"
 	"path/filepath"
 	"strings"
 	"time"
 
-    "github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"go.etcd.io/etcd/clientv3"
 )
 
 const servicesPrefix = "services"
 
 type Registry interface {
+    GetClient() (*clientv3.Client, error) 
 	Register(ctx context.Context, serviceName, nodeName, host string, port int) error
 	Services(ctx context.Context) (map[string][]Node, error)
 	WatchService(ctx context.Context, serviceName string) chan []Node
@@ -45,6 +44,13 @@ func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error
 		kv:      clientv3.NewKV(c),
 		watcher: clientv3.NewWatcher(c),
 	}, nil
+}
+
+func (er *etcdRegistry) GetClient() (*clientv3.Client, error) {
+    if (er.Client == nil) {
+        return nil, fmt.Errorf("client is nil")
+    }
+    return er.Client, nil
 }
 
 func (er *etcdRegistry) Register(ctx context.Context, serviceName, nodeName, host string, port int) error {

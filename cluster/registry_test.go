@@ -223,10 +223,8 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_MemberAdd() {
 }
 
 func startTestEtcd() (string, func()) {
-    return startEtcd(embed.NewConfig())
-}
+	cfg := embed.NewConfig()
 
-func startEtcd(cfg *embed.Config) (string, func()) {
 	tmp, err := ioutil.TempDir("", "test_etcd")
 	cfg.Dir = tmp
 	if err != nil {
