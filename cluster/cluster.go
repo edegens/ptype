@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-    "github.com/coreos/etcd/etcdserver/etcdserverpb"
+	"github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"go.etcd.io/etcd/embed"
 )
 
@@ -42,44 +42,44 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 }
 
 type MemberAddInfo struct {
-    Name string
-    InitialCluster string
-    InitialClusterState string
+	Name                string
+	InitialCluster      string
+	InitialClusterState string
 }
 
 func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo, error) {
-    client, err := c.Registry.GetClient()
-    if err != nil {
-        return nil, fmt.Errorf("failed to retrieve client from registry: %w", err) 
-    }
+	client, err := c.Registry.GetClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve client from registry: %w", err)
+	}
 
-    _, err = client.MemberAdd(ctx, []string{peerURL})
-    if err != nil {
-        return nil, fmt.Errorf("failed to add member with peerURL %v: %w", peerURL, err)
-    }
-    
-    cfg := c.etcd.Config() 
-    mai := &MemberAddInfo{
-        Name: cfg.Name,
-        InitialCluster: cfg.InitialCluster,
-        InitialClusterState: cfg.ClusterState,
-    }
+	_, err = client.MemberAdd(ctx, []string{peerURL})
+	if err != nil {
+		return nil, fmt.Errorf("failed to add member with peerURL n%v: %w", peerURL, err)
+	}
 
-    return mai, nil 
+	cfg := c.etcd.Config()
+	mai := &MemberAddInfo{
+		Name:                cfg.Name,
+		InitialCluster:      cfg.InitialCluster,
+		InitialClusterState: "existing",
+	}
+
+	return mai, nil
 }
 
 func (c *Cluster) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error) {
-    client, err := c.Registry.GetClient()
-    if err != nil {
-        return nil, fmt.Errorf("failed to retrieve client from registry: %w", err) 
-    }
+	client, err := c.Registry.GetClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve client from registry: %w", err)
+	}
 
-    resp, err := client.MemberList(ctx)
-    if err != nil {
-        return nil, fmt.Errorf("failed to retrieve member list: %w", err)
-    }
+	resp, err := client.MemberList(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve member list: %w", err)
+	}
 
-    return resp.Members, nil
+	return resp.Members, nil
 }
 
 func (c *Cluster) Close() error {
