@@ -3,7 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
-    "net/url"
+	"net/url"
 	"os"
 
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
@@ -43,11 +43,11 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 }
 
 type EtcdConfig struct {
-    Name string
-    DataDir string
-    LPUrls, LCUrls []url.URL
-    APUrls, ACUrls []url.URL
-    InitialCluster string
+	Name           string
+	DataDir        string
+	LPUrls, LCUrls []url.URL
+	APUrls, ACUrls []url.URL
+	InitialCluster string
 }
 
 type MemberAddInfo struct {

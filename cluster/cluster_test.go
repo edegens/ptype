@@ -3,7 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
-    "net/url"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -69,34 +69,34 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		lcfg, err := embed.ConfigFromFile(fmt.Sprintf("./testdata/%s", cfg.EtcdConfigFile))
 		require.NoError(t, err)
 
-        LPUrl, err := url.Parse("http://127.0.0.1:22380")
-        require.NoError(t, err)
+		LPUrl, err := url.Parse("http://127.0.0.1:22380")
+		require.NoError(t, err)
 
-        LCUrl, err := url.Parse("http://127.0.0.1:22379")
-        require.NoError(t, err)
+		LCUrl, err := url.Parse("http://127.0.0.1:22379")
+		require.NoError(t, err)
 
-        APUrl, err := url.Parse("http://127.0.0.1:22380")
-        require.NoError(t, err)
-        
-        ACUrl, err := url.Parse("http://127.0.0.1:22379")
-        require.NoError(t, err)
+		APUrl, err := url.Parse("http://127.0.0.1:22380")
+		require.NoError(t, err)
 
-        mecfg := &EtcdConfig{
-            Name: "node2",
-            DataDir: "tmp2",
-            LPUrls: []url.URL{*LPUrl},
-            LCUrls: []url.URL{*LCUrl},
-            APUrls: []url.URL{*APUrl},
-            ACUrls: []url.URL{*ACUrl},
-            InitialCluster: "node2=http://127.0.0.1:22380",
-        }
+		ACUrl, err := url.Parse("http://127.0.0.1:22379")
+		require.NoError(t, err)
 
-        mcfg := embed.NewConfig()
-        mcfg.Name = mecfg.Name
-        mcfg.Dir = mecfg.DataDir
-        mcfg.LPUrls = mecfg.LPUrls
-        mcfg.APUrls = mecfg.APUrls
-        mcfg.ACUrls = mecfg.ACUrls
+		mecfg := &EtcdConfig{
+			Name:           "node2",
+			DataDir:        "tmp2",
+			LPUrls:         []url.URL{*LPUrl},
+			LCUrls:         []url.URL{*LCUrl},
+			APUrls:         []url.URL{*APUrl},
+			ACUrls:         []url.URL{*ACUrl},
+			InitialCluster: "node2=http://127.0.0.1:22380",
+		}
+
+		mcfg := embed.NewConfig()
+		mcfg.Name = mecfg.Name
+		mcfg.Dir = mecfg.DataDir
+		mcfg.LPUrls = mecfg.LPUrls
+		mcfg.APUrls = mecfg.APUrls
+		mcfg.ACUrls = mecfg.ACUrls
 
 		mai, err := c.MemberAdd(ctx, mcfg.LPUrls[0].String())
 		require.NoError(t, err)
@@ -108,8 +108,8 @@ func (suite *ClusterSuite) TestMemberAdd() {
 
 		require.Equal(t, expectedmai, mai)
 
-        mcfg.InitialCluster = fmt.Sprintf("%s,%s", mai.InitialCluster, mecfg.InitialCluster)
-        mcfg.ClusterState = mai.InitialClusterState
+		mcfg.InitialCluster = fmt.Sprintf("%s,%s", mai.InitialCluster, mecfg.InitialCluster)
+		mcfg.ClusterState = mai.InitialClusterState
 
 		e, err := embed.StartEtcd(mcfg)
 		require.NoError(t, err)
