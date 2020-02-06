@@ -1,4 +1,0 @@
-service_name: foo 
-node_name: node2
-port: 8000
-etcd_config_file: node2.yml

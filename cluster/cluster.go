@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+    "net/url"
 	"os"
 
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
@@ -41,8 +42,15 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}, nil
 }
 
+type EtcdConfig struct {
+    Name string
+    DataDir string
+    LPUrls, LCUrls []url.URL
+    APUrls, ACUrls []url.URL
+    InitialCluster string
+}
+
 type MemberAddInfo struct {
-	Name                string
 	InitialCluster      string
 	InitialClusterState string
 }
@@ -60,7 +68,6 @@ func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo
 
 	cfg := c.etcd.Config()
 	mai := &MemberAddInfo{
-		Name:                cfg.Name,
 		InitialCluster:      cfg.InitialCluster,
 		InitialClusterState: "existing",
 	}
