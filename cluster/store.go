@@ -28,11 +28,27 @@ func NewKVStore(ctx context.Context, etcdAddr string) (*KVStore, error) {
 	}, nil
 }
 
+// Get returns the best matched value for the key provided
 func (kvs *KVStore) Get(ctx context.Context, key string) (string, error) {
-	getres, err := kvs.kv.Get(ctx, key, defaultGetOptions...)
+	getres, err := kvs.kv.Get(ctx, fmt.Sprintf("%s/%s", storePrefix, key), defaultGetOptions...)
 	if err != nil {
 		return "", fmt.Errorf("failed to get key %s: %w", key, err)
 	}
-	fmt.Println(getres)
-	return "", nil
+
+	return string(getres.Kvs[0].Value), nil
+}
+
+// GetAll returns all values that correspond to the supplied key
+func (kvs *KVStore) GetAll(ctx context.Context, key string) ([]string, error) {
+	getres, err := kvs.kv.Get(ctx, fmt.Sprintf("%s/%s", storePrefix, key), defaultGetOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get key %s: %w", key, err)
+	}
+
+	gets := make([]string, 0)
+	for _, kvs := range getres.Kvs {
+		gets = append(gets, string(kvs.Value))
+	}
+
+	return gets, nil
 }
