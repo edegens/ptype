@@ -131,24 +131,39 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
-	nodesChan := sr.WatchService(ctx, "foo")
-
 	key := filepath.Join(servicesPrefix, "foo", "node1")
 	_, err = sr.kv.Put(ctx, key, `{"address":"host", "port":8000}`)
 	require.NoError(t, err)
 
-	require.Equal(t, []Node{
-		{Address: "host", Port: 8000},
-	}, <-nodesChan)
+	nodesChan := sr.WatchService(ctx, "foo")
 
-	key = filepath.Join(servicesPrefix, "foo", "node3")
-	_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
-	require.NoError(t, err)
+	t.Run("channel returns the inital list of nodes before channel is created", func(t *testing.T) {
+		require.Equal(t, []Node{
+			{Address: "host", Port: 8000},
+		}, <-nodesChan)
+	})
 
-	require.Equal(t, []Node{
-		{Address: "host", Port: 8000},
-		{Address: "host3", Port: 3000},
-	}, <-nodesChan)
+	t.Run("channel returns all nodes on event change", func(t *testing.T) {
+		key = filepath.Join(servicesPrefix, "foo", "node3")
+		_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
+		require.NoError(t, err)
+
+		require.Equal(t, []Node{
+			{Address: "host", Port: 8000},
+			{Address: "host3", Port: 3000},
+		}, <-nodesChan)
+	})
+
+	t.Run("handles the deletion of a node", func(t *testing.T) {
+		key = filepath.Join(servicesPrefix, "foo", "node1")
+		_, err = sr.kv.Delete(ctx, key)
+		require.NoError(t, err)
+
+		require.Equal(t, []Node{
+			{Address: "host3", Port: 3000},
+		}, <-nodesChan)
+	})
+
 }
 
 func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService_stops_with_context_cancel() {

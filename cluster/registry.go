@@ -99,18 +99,21 @@ func (er *etcdRegistry) WatchService(ctx context.Context, serviceName string) ch
 	go func() {
 		defer close(nodesChan)
 		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			nodes, err := er.nodes(ctx, serviceName)
+			if err != nil {
+				continue
+			}
+			nodesChan <- nodes
+
 			select {
 			case res := <-watchChan:
-				if err := res.Err(); err != nil {
-					fmt.Printf("watching service %v, error occured: %v", serviceName, err)
+				if res.Err() != nil {
 					return
 				}
-				nodes, err := er.nodes(ctx, serviceName)
-				if err != nil {
-					fmt.Printf("reading nodes for service %v, error occured: %v", serviceName, err)
-					continue
-				}
-				nodesChan <- nodes
 			case <-ctx.Done():
 				return
 			}
