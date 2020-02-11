@@ -66,25 +66,25 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	})
 
 	t.Run("test member add successfully adds new member", func(t *testing.T) {
-        LPUrl, err := url.Parse("http://127.0.0.1:22380")
-        require.NoError(t, err)
+		LPUrl, err := url.Parse("http://127.0.0.1:22380")
+		require.NoError(t, err)
 
-        LCUrl, err := url.Parse("http://127.0.0.1:22379")
-        require.NoError(t, err)
+		LCUrl, err := url.Parse("http://127.0.0.1:22379")
+		require.NoError(t, err)
 
-        APUrl, err := url.Parse("http://127.0.0.1:22380")
-        require.NoError(t, err)
+		APUrl, err := url.Parse("http://127.0.0.1:22380")
+		require.NoError(t, err)
 
-        ACUrl, err := url.Parse("http://127.0.0.1:22379")
-        require.NoError(t, err)
+		ACUrl, err := url.Parse("http://127.0.0.1:22379")
+		require.NoError(t, err)
 
 		membercfg := embed.NewConfig()
-		membercfg.Name = "node2" 
-		membercfg.Dir = "tmp2" 
-		membercfg.LPUrls = []url.URL{*LPUrl} 
-        membercfg.LCUrls = []url.URL{*LCUrl}
-		membercfg.APUrls = []url.URL{*APUrl} 
-		membercfg.ACUrls = []url.URL{*ACUrl} 
+		membercfg.Name = "node2"
+		membercfg.Dir = "tmp2"
+		membercfg.LPUrls = []url.URL{*LPUrl}
+		membercfg.LCUrls = []url.URL{*LCUrl}
+		membercfg.APUrls = []url.URL{*APUrl}
+		membercfg.ACUrls = []url.URL{*ACUrl}
 
 		mai, err := c.MemberAdd(ctx, membercfg.LPUrls[0].String())
 		require.NoError(t, err)

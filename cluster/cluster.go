@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-    "time"
+	"time"
 
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
-    "go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/embed"
 )
 
@@ -49,22 +49,22 @@ type MemberAddInfo struct {
 }
 
 func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo, error) {
-    etcdCfg := c.etcd.Config() 
-    cfg := clientv3.Config{
-        Endpoints: []string{etcdCfg.LCUrls[0].String()},
-        DialTimeout: 5 * time.Second,
-    }
-    client, err := clientv3.New(cfg)
+	etcdCfg := c.etcd.Config()
+	cfg := clientv3.Config{
+		Endpoints:   []string{etcdCfg.LCUrls[0].String()},
+		DialTimeout: 5 * time.Second,
+	}
+	client, err := clientv3.New(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
 	}
 
-    mresp, err := client.MemberAdd(ctx, []string{peerURL})
+	mresp, err := client.MemberAdd(ctx, []string{peerURL})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add member with peerURL n%v: %w", peerURL, err)
 	}
 
-    fmt.Println("MEMBER:", mresp)
+	fmt.Println("MEMBER:", mresp)
 	mai := &MemberAddInfo{
 		InitialCluster:      etcdCfg.InitialCluster,
 		InitialClusterState: "existing",
@@ -74,12 +74,12 @@ func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo
 }
 
 func (c *Cluster) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error) {
-    etcdCfg := c.etcd.Config() 
-    cfg := clientv3.Config{
-        Endpoints: []string{etcdCfg.LCUrls[0].String()},
-        DialTimeout: 5 * time.Second,
-    }
-	client, err := clientv3.New(cfg) 
+	etcdCfg := c.etcd.Config()
+	cfg := clientv3.Config{
+		Endpoints:   []string{etcdCfg.LCUrls[0].String()},
+		DialTimeout: 5 * time.Second,
+	}
+	client, err := clientv3.New(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
 	}
