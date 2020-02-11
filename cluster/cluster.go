@@ -3,10 +3,11 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
+    "time"
 
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
+    "go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/embed"
 )
 
@@ -42,33 +43,30 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}, nil
 }
 
-type EtcdConfig struct {
-	Name           string
-	DataDir        string
-	LPUrls, LCUrls []url.URL
-	APUrls, ACUrls []url.URL
-	InitialCluster string
-}
-
 type MemberAddInfo struct {
 	InitialCluster      string
 	InitialClusterState string
 }
 
 func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo, error) {
-	client, err := c.Registry.GetClient()
+    etcdCfg := c.etcd.Config() 
+    cfg := clientv3.Config{
+        Endpoints: []string{etcdCfg.LCUrls[0].String()},
+        DialTimeout: 5 * time.Second,
+    }
+    client, err := clientv3.New(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve client from registry: %w", err)
+		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
 	}
 
-	_, err = client.MemberAdd(ctx, []string{peerURL})
+    mresp, err := client.MemberAdd(ctx, []string{peerURL})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add member with peerURL n%v: %w", peerURL, err)
 	}
 
-	cfg := c.etcd.Config()
+    fmt.Println("MEMBER:", mresp)
 	mai := &MemberAddInfo{
-		InitialCluster:      cfg.InitialCluster,
+		InitialCluster:      etcdCfg.InitialCluster,
 		InitialClusterState: "existing",
 	}
 
@@ -76,9 +74,14 @@ func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo
 }
 
 func (c *Cluster) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error) {
-	client, err := c.Registry.GetClient()
+    etcdCfg := c.etcd.Config() 
+    cfg := clientv3.Config{
+        Endpoints: []string{etcdCfg.LCUrls[0].String()},
+        DialTimeout: 5 * time.Second,
+    }
+	client, err := clientv3.New(cfg) 
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve client from registry: %w", err)
+		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
 	}
 
 	resp, err := client.MemberList(ctx)

@@ -66,52 +66,40 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	})
 
 	t.Run("test member add successfully adds new member", func(t *testing.T) {
-		lcfg, err := embed.ConfigFromFile(fmt.Sprintf("./testdata/%s", cfg.EtcdConfigFile))
-		require.NoError(t, err)
+        LPUrl, err := url.Parse("http://127.0.0.1:22380")
+        require.NoError(t, err)
 
-		LPUrl, err := url.Parse("http://127.0.0.1:22380")
-		require.NoError(t, err)
+        LCUrl, err := url.Parse("http://127.0.0.1:22379")
+        require.NoError(t, err)
 
-		LCUrl, err := url.Parse("http://127.0.0.1:22379")
-		require.NoError(t, err)
+        APUrl, err := url.Parse("http://127.0.0.1:22380")
+        require.NoError(t, err)
 
-		APUrl, err := url.Parse("http://127.0.0.1:22380")
-		require.NoError(t, err)
+        ACUrl, err := url.Parse("http://127.0.0.1:22379")
+        require.NoError(t, err)
 
-		ACUrl, err := url.Parse("http://127.0.0.1:22379")
-		require.NoError(t, err)
+		membercfg := embed.NewConfig()
+		membercfg.Name = "node2" 
+		membercfg.Dir = "tmp2" 
+		membercfg.LPUrls = []url.URL{*LPUrl} 
+        membercfg.LCUrls = []url.URL{*LCUrl}
+		membercfg.APUrls = []url.URL{*APUrl} 
+		membercfg.ACUrls = []url.URL{*ACUrl} 
 
-		mecfg := &EtcdConfig{
-			Name:           "node2",
-			DataDir:        "tmp2",
-			LPUrls:         []url.URL{*LPUrl},
-			LCUrls:         []url.URL{*LCUrl},
-			APUrls:         []url.URL{*APUrl},
-			ACUrls:         []url.URL{*ACUrl},
-			InitialCluster: "node2=http://127.0.0.1:22380",
-		}
-
-		mcfg := embed.NewConfig()
-		mcfg.Name = mecfg.Name
-		mcfg.Dir = mecfg.DataDir
-		mcfg.LPUrls = mecfg.LPUrls
-		mcfg.APUrls = mecfg.APUrls
-		mcfg.ACUrls = mecfg.ACUrls
-
-		mai, err := c.MemberAdd(ctx, mcfg.LPUrls[0].String())
+		mai, err := c.MemberAdd(ctx, membercfg.LPUrls[0].String())
 		require.NoError(t, err)
 
 		expectedmai := &MemberAddInfo{
-			InitialCluster:      lcfg.InitialCluster,
+			InitialCluster:      cfg.etcdConfig.InitialCluster,
 			InitialClusterState: "existing",
 		}
 
 		require.Equal(t, expectedmai, mai)
 
-		mcfg.InitialCluster = fmt.Sprintf("%s,%s", mai.InitialCluster, mecfg.InitialCluster)
-		mcfg.ClusterState = mai.InitialClusterState
+		membercfg.InitialCluster = fmt.Sprintf("%s,%s=%s", mai.InitialCluster, membercfg.Name, membercfg.LPUrls[0].String())
+		membercfg.ClusterState = mai.InitialClusterState
 
-		e, err := embed.StartEtcd(mcfg)
+		e, err := embed.StartEtcd(membercfg)
 		require.NoError(t, err)
 		defer e.Close()
 
