@@ -14,6 +14,7 @@ type Config struct {
 	NodeName       string `json:"node_name"`
 	Port           int    `json:"port"`
 	EtcdConfigFile string `json:"etcd_config_file"`
+	Debug          bool   `json:"debug"`
 
 	etcdConfig *embed.Config
 }
