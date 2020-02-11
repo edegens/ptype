@@ -182,46 +182,6 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService_stops_with_contex
 	require.False(t, ok)
 }
 
-func (suite *EtcdDependentSuite) TestEtcdRegistry_MemberList() {
-    t := suite.T()
-
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-
-    er, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
-    require.NoError(t, err)
-
-    actual, err := er.MemberList(ctx)
-    require.NoError(t, err)
-
-    require.Equal(t, 1, len(actual))
-}
-
-func (suite *EtcdDependentSuite) TestEtcdRegistry_MemberAdd() {
-    t := suite.T()
-
-    ctx, cancel := context.WithCancel(context.Background())
-    defer cancel()
-
-    er, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
-    require.NoError(t, err)
-
-    cfg, err := embed.ConfigFromFile("testdata/node2.yml")
-    require.NoError(t, err)
-
-    memberAddr, memberCleanup := startEtcd(cfg)
-
-    err = er.MemberAdd(ctx, []string{memberAddr})
-    require.NoError(t, err)
-
-    actual, err := er.MemberList(ctx)
-    require.NoError(t, err)
-
-    require.Equal(t, 2, len(actual))
-
-    memberCleanup()
-}
-
 func startTestEtcd() (string, func()) {
 	cfg := embed.NewConfig()
 
