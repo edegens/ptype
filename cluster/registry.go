@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.etcd.io/etcd/clientv3"
+	"go.uber.org/zap"
 )
 
 const servicesPrefix = "services"
@@ -105,6 +106,7 @@ func (er *etcdRegistry) WatchService(ctx context.Context, serviceName string) ch
 
 			nodes, err := er.nodes(ctx, serviceName)
 			if err != nil {
+				zap.S().Errorw("failed to get nodes for service", "service", serviceName)
 				continue
 			}
 			nodesChan <- nodes

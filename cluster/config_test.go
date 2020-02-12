@@ -21,6 +21,7 @@ func TestConfigFromFile(t *testing.T) {
 				NodeName:       "node1",
 				Port:           3000,
 				EtcdConfigFile: "node1.yml",
+				Debug:          true,
 			},
 		},
 		{

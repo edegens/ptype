@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"go.etcd.io/etcd/embed"
+	"go.uber.org/zap"
 )
 
 type Cluster struct {
@@ -15,6 +16,14 @@ type Cluster struct {
 }
 
 func Join(ctx context.Context, cfg Config) (*Cluster, error) {
+	if cfg.Debug {
+		logger, err := zap.NewDevelopment()
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize logger: %w", err)
+		}
+		zap.ReplaceGlobals(logger)
+	}
+
 	e, err := startEmbeddedEtcd(cfg.etcdConfig)
 	if err != nil {
 		return nil, err
