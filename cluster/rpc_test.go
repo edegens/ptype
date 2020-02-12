@@ -9,17 +9,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/clientv3"
 )
 
 type mockRegistry struct {
-	client   *clientv3.Client
 	services map[string][]Node
 	err      error
-}
-
-func (m *mockRegistry) GetClient() (*clientv3.Client, error) {
-	return m.client, m.err
 }
 
 func (m *mockRegistry) Register(ctx context.Context, serviceName, nodeName, host string, port int) error {
