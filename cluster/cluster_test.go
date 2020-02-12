@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -78,28 +79,36 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		ACUrl, err := url.Parse("http://127.0.0.1:22379")
 		require.NoError(t, err)
 
-		membercfg := embed.NewConfig()
-		membercfg.Name = "node2"
-		membercfg.Dir = "tmp2"
-		membercfg.LPUrls = []url.URL{*LPUrl}
-		membercfg.LCUrls = []url.URL{*LCUrl}
-		membercfg.APUrls = []url.URL{*APUrl}
-		membercfg.ACUrls = []url.URL{*ACUrl}
+		memberName := "node2"
+		memberCfg := embed.NewConfig()
+		memberCfg.Name = memberName
+		memberCfg.Dir = "tmp2"
+		memberCfg.LPUrls = []url.URL{*LPUrl}
+		memberCfg.LCUrls = []url.URL{*LCUrl}
+		memberCfg.APUrls = []url.URL{*APUrl}
+		memberCfg.ACUrls = []url.URL{*ACUrl}
 
-		mai, err := c.MemberAdd(ctx, membercfg.LPUrls[0].String())
+		mai, err := c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
 		require.NoError(t, err)
 
+		initialClusterStrings := []string{
+			fmt.Sprintf("%s=%s", cfg.etcdConfig.Name, cfg.etcdConfig.LPUrls[0].String()),
+			fmt.Sprintf("%s=%s", memberName, LPUrl.String()),
+		}
+		sort.Strings(initialClusterStrings)
+		initialCluster := fmt.Sprintf("%s,%s", initialClusterStrings[0], initialClusterStrings[1])
+
 		expectedmai := &MemberAddInfo{
-			InitialCluster:      cfg.etcdConfig.InitialCluster,
+			InitialCluster:      initialCluster,
 			InitialClusterState: "existing",
 		}
 
 		require.Equal(t, expectedmai, mai)
 
-		membercfg.InitialCluster = fmt.Sprintf("%s,%s=%s", mai.InitialCluster, membercfg.Name, membercfg.LPUrls[0].String())
-		membercfg.ClusterState = mai.InitialClusterState
+		memberCfg.InitialCluster = mai.InitialCluster
+		memberCfg.ClusterState = mai.InitialClusterState
 
-		e, err := embed.StartEtcd(membercfg)
+		e, err := embed.StartEtcd(memberCfg)
 		require.NoError(t, err)
 		defer e.Close()
 

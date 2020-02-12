@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
@@ -48,7 +50,7 @@ type MemberAddInfo struct {
 	InitialClusterState string
 }
 
-func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo, error) {
+func (c *Cluster) MemberAdd(ctx context.Context, name, peerURL string) (*MemberAddInfo, error) {
 	etcdCfg := c.etcd.Config()
 	cfg := clientv3.Config{
 		Endpoints:   []string{etcdCfg.LCUrls[0].String()},
@@ -64,9 +66,27 @@ func (c *Cluster) MemberAdd(ctx context.Context, peerURL string) (*MemberAddInfo
 		return nil, fmt.Errorf("failed to add member with peerURL n%v: %w", peerURL, err)
 	}
 
-	fmt.Println("MEMBER:", mresp)
+	initialClusterStrings := make([]string, 2)
+	for _, member := range mresp.Members {
+		if member.Name == "" && strings.Compare(peerURL, member.PeerURLs[0]) == 0 {
+			initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(name, member.PeerURLs[0]))
+		} else {
+			initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(member.Name, member.PeerURLs[0]))
+		}
+	}
+	sort.Strings(initialClusterStrings)
+
+	var initialCluster string
+	for _, str := range initialClusterStrings {
+		if initialCluster == "" {
+			initialCluster = str
+		} else {
+			initialCluster += fmt.Sprintf(",%v", str)
+		}
+	}
+
 	mai := &MemberAddInfo{
-		InitialCluster:      etcdCfg.InitialCluster,
+		InitialCluster:      initialCluster,
 		InitialClusterState: "existing",
 	}
 
@@ -90,6 +110,10 @@ func (c *Cluster) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error
 	}
 
 	return resp.Members, nil
+}
+
+func initialClusterStringFormatter(name, peerURL string) string {
+	return fmt.Sprintf("%s=%s", name, peerURL)
 }
 
 func (c *Cluster) Close() error {
