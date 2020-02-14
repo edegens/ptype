@@ -92,8 +92,8 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		require.NoError(t, err)
 
 		initialClusterStrings := []string{
-			fmt.Sprintf("%s=%s", cfg.etcdConfig.Name, cfg.etcdConfig.LPUrls[0].String()),
-			fmt.Sprintf("%s=%s", memberName, LPUrl.String()),
+			initialClusterStringFormatter(cfg.etcdConfig.Name, cfg.etcdConfig.LPUrls[0].String()),
+			initialClusterStringFormatter(memberName, LPUrl.String()),
 		}
 		sort.Strings(initialClusterStrings)
 		initialCluster := fmt.Sprintf("%s,%s", initialClusterStrings[0], initialClusterStrings[1])

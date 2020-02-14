@@ -16,6 +16,7 @@ import (
 type Cluster struct {
 	Registry Registry
 	Store    *KVStore
+	client   *clientv3.Client
 	etcd     *embed.Etcd
 }
 
@@ -39,8 +40,18 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
+	clientCfg := clientv3.Config{
+		Endpoints:   []string{clientURL},
+		DialTimeout: 5 * time.Second,
+	}
+	client, err := clientv3.New(clientCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
+	}
+
 	return &Cluster{
 		Registry: registry,
+		client:   client,
 		etcd:     e,
 	}, nil
 }
@@ -51,22 +62,12 @@ type MemberAddInfo struct {
 }
 
 func (c *Cluster) MemberAdd(ctx context.Context, name, peerURL string) (*MemberAddInfo, error) {
-	etcdCfg := c.etcd.Config()
-	cfg := clientv3.Config{
-		Endpoints:   []string{etcdCfg.LCUrls[0].String()},
-		DialTimeout: 5 * time.Second,
-	}
-	client, err := clientv3.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
-	}
-
-	mresp, err := client.MemberAdd(ctx, []string{peerURL})
+	mresp, err := c.client.MemberAdd(ctx, []string{peerURL})
 	if err != nil {
 		return nil, fmt.Errorf("failed to add member with peerURL n%v: %w", peerURL, err)
 	}
 
-	initialClusterStrings := make([]string, 2)
+	initialClusterStrings := make([]string, 0, 2)
 	for _, member := range mresp.Members {
 		if member.Name == "" && strings.Compare(peerURL, member.PeerURLs[0]) == 0 {
 			initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(name, member.PeerURLs[0]))
@@ -76,14 +77,7 @@ func (c *Cluster) MemberAdd(ctx context.Context, name, peerURL string) (*MemberA
 	}
 	sort.Strings(initialClusterStrings)
 
-	var initialCluster string
-	for _, str := range initialClusterStrings {
-		if initialCluster == "" {
-			initialCluster = str
-		} else {
-			initialCluster += fmt.Sprintf(",%v", str)
-		}
-	}
+	initialCluster := strings.Join(initialClusterStrings, ",")
 
 	mai := &MemberAddInfo{
 		InitialCluster:      initialCluster,
@@ -94,17 +88,7 @@ func (c *Cluster) MemberAdd(ctx context.Context, name, peerURL string) (*MemberA
 }
 
 func (c *Cluster) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error) {
-	etcdCfg := c.etcd.Config()
-	cfg := clientv3.Config{
-		Endpoints:   []string{etcdCfg.LCUrls[0].String()},
-		DialTimeout: 5 * time.Second,
-	}
-	client, err := clientv3.New(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
-	}
-
-	resp, err := client.MemberList(ctx)
+	resp, err := c.client.MemberList(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve member list: %w", err)
 	}
