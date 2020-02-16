@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -52,6 +53,7 @@ func TestNewClient(t *testing.T) {
 	require.NotNil(t, client)
 
 	mock.nodeChan <- []Node{node}
+	time.Sleep(time.Millisecond * 5)
 	require.Equal(t, map[Node]struct{}{
 		node: struct{}{},
 	}, client.nodesConnected)

@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 func init() {
@@ -26,7 +24,6 @@ type Client struct {
 
 	nodesConnected map[Node]struct{}
 	clients        []*rpc.Client
-	lock           sync.RWMutex
 
 	// Watcher
 	cancel    func()
@@ -57,13 +54,13 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) selectNodes(nodes []Node, maxConnections int) []Node {
-	max := len(c.nodesConnected)
+	max := len(nodes)
 	if maxConnections < max {
 		max = maxConnections
 	}
 
 	// Prefill with exisitng hosts, this also removed dead hosts
-	newNodes := make([]Node, maxConnections)
+	newNodes := []Node{}
 	for _, node := range nodes {
 		if _, ok := c.nodesConnected[node]; ok {
 			newNodes = append(newNodes, node)
@@ -79,6 +76,12 @@ func (c *Client) selectNodes(nodes []Node, maxConnections int) []Node {
 	}
 
 	return newNodes
+}
+
+func (c *Client) hashConnectionIndex(connNumber, nodeSize int) int {
+	h := fnv.New32a()
+	h.Write([]byte(c.clientNode + strconv.Itoa(connNumber)))
+	return int(h.Sum32()) % nodeSize
 }
 
 func (c *Client) connectToNodes(nodes []Node) ([]*rpc.Client, error) {
@@ -99,41 +102,32 @@ func (c *Client) connectToNodes(nodes []Node) ([]*rpc.Client, error) {
 	return clients, nil
 }
 
-func (c *Client) hashConnectionIndex(connNumber, nodeSize int) int {
-	h := fnv.New32a()
-	h.Write([]byte(c.clientNode + strconv.Itoa(connNumber)))
-	return int(h.Sum32()) % nodeSize
-}
-
 func (c *Client) watchForNewNodes(ctx context.Context, serviceName string) error {
 	defer c.waitGroup.Done()
 
 	nodesChan := c.registry.WatchService(ctx, serviceName)
-	for nodes := range nodesChan {
-		if len(nodes) == 0 {
-			continue
-		}
+	for {
+		select {
+		case nodes := <-nodesChan:
+			if len(nodes) == 0 {
+				continue
+			}
 
-		newNodes := c.selectNodes(nodes, DefaultMaxClientConnections)
-		zap.S().Infow("new nodes", "nodes", newNodes)
-		clients, err := c.connectToNodes(newNodes)
-		if err != nil {
-			return err
-		}
+			newNodes := c.selectNodes(nodes, DefaultMaxClientConnections)
+			clients, err := c.connectToNodes(newNodes)
+			if err != nil {
+				return err
+			}
 
-		nodesConnected := make(map[Node]struct{}, len(newNodes))
-		for _, node := range newNodes {
-			nodesConnected[node] = struct{}{}
-		}
+			nodesConnected := make(map[Node]struct{}, len(newNodes))
+			for _, node := range newNodes {
+				nodesConnected[node] = struct{}{}
+			}
 
-		c.clients = append(c.clients, clients...)
-		c.nodesConnected = nodesConnected
+			c.clients = append(c.clients, clients...)
+			c.nodesConnected = nodesConnected
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
-	return nil
-}
-
-func (c *Client) getConnection(index int) *rpc.Client {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	return c.clients[index]
 }
