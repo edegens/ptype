@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -14,6 +13,7 @@ import (
 type mockRegistry struct {
 	services map[string][]Node
 	err      error
+	nodeChan chan []Node
 }
 
 func (m *mockRegistry) Register(ctx context.Context, serviceName, nodeName, host string, port int) error {
@@ -25,7 +25,7 @@ func (m *mockRegistry) Services(ctx context.Context) (map[string][]Node, error) 
 }
 
 func (m *mockRegistry) WatchService(ctx context.Context, serviceName string) chan []Node {
-	return make(chan []Node)
+	return m.nodeChan
 }
 
 func TestNewClient(t *testing.T) {
@@ -37,20 +37,24 @@ func TestNewClient(t *testing.T) {
 	require.NoError(t, err)
 	go func() { _ = ts.Serve(l) }()
 
+	node := Node{
+		Address: "127.0.0.1",
+		Port:    l.Addr().(*net.TCPAddr).Port,
+	}
 	mock := mockRegistry{
-		services: map[string][]Node{
-			"foo": {
-				{
-					Address: "127.0.0.1",
-					Port:    l.Addr().(*net.TCPAddr).Port,
-				},
-			},
-		},
+		nodeChan: make(chan []Node),
 	}
 
-	client, err := NewClient("foo", &mock)
+	client, err := newClient("", "foo", &mock)
+	defer client.Close()
+
 	require.NoError(t, err)
 	require.NotNil(t, client)
+
+	mock.nodeChan <- []Node{node}
+	require.Equal(t, map[Node]struct{}{
+		node: struct{}{},
+	}, client.nodesConnected)
 }
 
 func TestNewClient_with_no_available_server(t *testing.T) {
@@ -58,7 +62,7 @@ func TestNewClient_with_no_available_server(t *testing.T) {
 		services: map[string][]Node{},
 	}
 
-	client, err := NewClient("foo", &mock)
+	client, err := newClient("", "foo", &mock)
 	require.Error(t, err)
 	require.Nil(t, client)
 }
@@ -72,30 +76,7 @@ func TestNewClient_with_servers_failing_to_connect(t *testing.T) {
 		},
 	}
 
-	client, err := NewClient("foo", &mock)
+	client, err := newClient("", "foo", &mock)
 	require.Error(t, err)
 	require.Nil(t, client)
-}
-
-func TestNodeToDial_uses_random_node(t *testing.T) {
-	mock := mockRegistry{
-		services: map[string][]Node{
-			"foo": {
-				{Address: "127.0.0.1", Port: 1234},
-				{Address: "127.0.0.1", Port: 3000},
-				{Address: "127.0.0.1", Port: 4321},
-			},
-		},
-	}
-
-	rand.Seed(1)
-	node, err := nodeToDial("foo", &mock)
-	require.NoError(t, err)
-	require.Equal(t, mock.services["foo"][2], node)
-
-	// Use different seed
-	rand.Seed(3)
-	node, err = nodeToDial("foo", &mock)
-	require.NoError(t, err)
-	require.Equal(t, mock.services["foo"][1], node)
 }
