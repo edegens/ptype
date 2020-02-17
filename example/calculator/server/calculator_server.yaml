@@ -1,0 +1,4 @@
+service_name: calculator
+node_name: calculator_node_1
+port: 1234
+etcd_config_file: calculator_etcd.yaml

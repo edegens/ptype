@@ -20,7 +20,7 @@ func TestConfigFromFile(t *testing.T) {
 				ServiceName:    "ping",
 				NodeName:       "node1",
 				Port:           3000,
-				EtcdConfigPath: "testdata/node1.yml",
+				EtcdConfigFile: "node1.yml",
 			},
 		},
 		{

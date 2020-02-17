@@ -1,4 +1,4 @@
 service_name: ping
 node_name: node1
 port: 3000
-etcd_config_path: testdata/node1.yml
+etcd_config_file: node1.yml
