@@ -28,6 +28,7 @@ type Node struct {
 type etcdRegistry struct {
 	kv      clientv3.KV
 	watcher clientv3.Watcher
+	cli     *clientv3.Client
 }
 
 func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error) {
@@ -43,6 +44,7 @@ func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error
 	return &etcdRegistry{
 		kv:      clientv3.NewKV(c),
 		watcher: clientv3.NewWatcher(c),
+		cli:     c,
 	}, nil
 }
 
@@ -53,10 +55,32 @@ func (er *etcdRegistry) Register(ctx context.Context, serviceName, nodeName, hos
 		return fmt.Errorf("failed to marshal node: %w", err)
 	}
 
+	// TODO: Discuss appripriate lease time, I chose 2 seconds using no imperical data
+	resp, err := er.cli.Grant(ctx, 2)
+	if err != nil {
+		return fmt.Errorf("failed to create lease for service: %w", err)
+	}
+
 	key := filepath.Join(servicesPrefix, serviceName, nodeName)
-	if _, err = er.kv.Put(ctx, key, string(val)); err != nil {
+	if _, err = er.kv.Put(ctx, key, string(val), clientv3.WithLease(resp.ID)); err != nil {
 		return fmt.Errorf("failed to register node: %w", err)
 	}
+
+	keepAliveResp, err := er.cli.KeepAlive(ctx, resp.ID)
+	if err != nil {
+		return fmt.Errorf("failed to keep service registered: %w", err)
+	}
+	go func() {
+		for {
+			kar := <-keepAliveResp
+			if kar == nil {
+				fmt.Printf("service %s failed to refresh \n", serviceName)
+				break
+
+			}
+			fmt.Printf("service %s refreshed and vaild for(ttl): %d \n", serviceName, kar.TTL)
+		}
+	}()
 
 	return nil
 }

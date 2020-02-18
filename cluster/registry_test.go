@@ -122,6 +122,31 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Services() {
 	require.Equal(t, expected, actual)
 }
 
+func (suite *EtcdDependentSuite) TestServiceRegistry_Leases() {
+	t := suite.T()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	err = sr.Register(ctx, "bar", "node1", "host", 8000)
+	require.NoError(t, err)
+
+	t.Run("test lease expires when context is canceled", func(t *testing.T) {
+		cancel()
+		time.Sleep(time.Second * 5)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		key := filepath.Join(servicesPrefix, "bar")
+		res, err := sr.kv.Get(ctx, key, defaultGetOptions...)
+		require.NoError(t, err)
+
+		require.Len(t, res.Kvs, 0)
+	})
+}
+
 func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	t := suite.T()
 
