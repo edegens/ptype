@@ -35,8 +35,10 @@ func (suite *EtcdDependentSuite) TestKVGet() {
 
 	tmpKV := clientv3.NewKV(c)
 	expected := "uwu1"
-	tmpKV.Put(ctx, "store/raccoon1", expected)
-	tmpKV.Put(ctx, "store/raccoon2", "uwu2")
+	_, err = tmpKV.Put(ctx, "store/raccoon1", expected)
+	require.NoError(t, err)
+	_, err = tmpKV.Put(ctx, "store/raccoon2", "uwu2")
+	require.NoError(t, err)
 
 	val, err := kvs.Get(ctx, "raccoon")
 	require.NoError(t, err)
@@ -78,8 +80,10 @@ func (suite *EtcdDependentSuite) TestKVGetAll() {
 	defer c.Close()
 
 	tmpKV := clientv3.NewKV(c)
-	tmpKV.Put(ctx, "store/raccoon1", "uwu1")
-	tmpKV.Put(ctx, "store/raccoon2", "uwu2")
+	_, err = tmpKV.Put(ctx, "store/raccoon1", "uwu1")
+	require.NoError(t, err)
+	_, err = tmpKV.Put(ctx, "store/raccoon2", "uwu2")
+	require.NoError(t, err)
 
 	val, err := kvs.GetAll(ctx, "raccoon")
 	require.NoError(t, err)
