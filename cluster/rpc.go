@@ -11,36 +11,38 @@ import (
 	"time"
 )
 
-func init() {
-	// Initalize the seed used for the RPC client.
-	rand.Seed(time.Now().UnixNano())
-}
-
 type Client struct {
-	*rpc.Client
-	registry Registry
+	conns *connectionBalancer
 }
 
-func NewClient(serviceName string, r Registry) (*Client, error) {
-	node, err := nodeToDial(serviceName, r)
+func newClient(host string, serviceName string, r Registry) (*Client, error) {
+	conns, err := newConnectionBalancer(host, serviceName, r)
 	if err != nil {
 		return nil, err
 	}
-
-	dialAddr := fmt.Sprintf("%v:%v", node.Address, node.Port)
-	client, err := rpc.DialHTTP("tcp", dialAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial service address %v: %w", dialAddr, err)
-	}
-
 	return &Client{
-		Client:   client,
-		registry: r,
+		conns: conns,
 	}, nil
 }
 
-func nodeToDial(serviceName string, r Registry) (node Node, err error) {
-	serv, err := r.Services(context.Background())
+func (c *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
+	client := c.conns.Get()
+	return client.Call(serviceMethod, args, reply)
+}
+
+func (c *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *rpc.Call) *rpc.Call {
+	client := c.conns.Get()
+	return client.Go(serviceMethod, args, reply, done)
+}
+
+func (c *Client) Close() error {
+	return c.conns.Close()
+}
+
+func (c *Client) ConnectionErrs() chan error {
+	return c.conns.errChan
+}
+
 const defaultMaxConnections = 3
 const defaultInitalNodeTimeout = 5 * time.Second
 
@@ -130,12 +132,9 @@ func (c *connectionBalancer) handleNewNodes(nodes []Node) error {
 	selectedNodes := c.selectNodes(nodes, defaultMaxConnections)
 	clients, err := c.connectToNodes(selectedNodes)
 	if err != nil {
-		return node, err
+		return err
 	}
 
-	nodes, ok := serv[serviceName]
-	if !ok || len(nodes) == 0 {
-		return node, fmt.Errorf("failed to find service %v in the registry", serviceName)
 	c.clients = clients
 	c.selectedNodes = selectedNodes
 	return nil
