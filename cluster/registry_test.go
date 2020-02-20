@@ -238,6 +238,10 @@ func cleanEtcdDir(t *testing.T, testEtcdAddr string) {
 	if err != nil {
 		return
 	}
+	_, err = KV.Delete(context.Background(), storePrefix, clientv3.WithPrefix())
+	if err != nil {
+		return
+	}
 
 	require.NoError(t, err)
 }

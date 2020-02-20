@@ -15,6 +15,7 @@ func TestNewKVStore(t *testing.T) {
 }
 
 func (suite *EtcdDependentSuite) TestKVGet() {
+	suite.SetupTest()
 	t := suite.T()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -42,7 +43,23 @@ func (suite *EtcdDependentSuite) TestKVGet() {
 	require.Equal(t, expected, val, "value read back should be the same")
 }
 
+func (suite *EtcdDependentSuite) TestKVGetErrorsOnNoKey() {
+	suite.SetupTest()
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	val, err := kvs.Get(ctx, "raccoon")
+	require.Equal(t, ErrNoKey, err, "error returned should be ErrNoKey")
+	require.Equal(t, val, "")
+}
+
 func (suite *EtcdDependentSuite) TestKVGetAll() {
+	suite.SetupTest()
 	t := suite.T()
 
 	ctx, cancel := context.WithCancel(context.Background())

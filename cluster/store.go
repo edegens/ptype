@@ -2,12 +2,17 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go.etcd.io/etcd/clientv3"
 	"time"
 )
 
 const storePrefix = "store"
+
+var (
+	ErrNoKey = errors.New("Key does not exist in store")
+)
 
 type KVStore struct {
 	kv clientv3.KV
@@ -35,6 +40,9 @@ func (kvs *KVStore) Get(ctx context.Context, key string) (string, error) {
 		return "", fmt.Errorf("failed to get key %s: %w", key, err)
 	}
 
+	if len(getres.Kvs) == 0 {
+		return "", ErrNoKey
+	}
 	return string(getres.Kvs[0].Value), nil
 }
 
