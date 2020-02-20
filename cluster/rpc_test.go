@@ -2,11 +2,11 @@ package cluster
 
 import (
 	"context"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/rpc"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -14,6 +14,15 @@ import (
 type mockRegistry struct {
 	services map[string][]Node
 	err      error
+	nodeChan chan []Node
+}
+
+func newMockRegistry(initalNodes []Node) mockRegistry {
+	mock := mockRegistry{
+		nodeChan: make(chan []Node),
+	}
+	go func() { mock.nodeChan <- initalNodes }()
+	return mock
 }
 
 func (m *mockRegistry) Register(ctx context.Context, serviceName, nodeName, host string, port int) error {
@@ -25,7 +34,7 @@ func (m *mockRegistry) Services(ctx context.Context) (map[string][]Node, error) 
 }
 
 func (m *mockRegistry) WatchService(ctx context.Context, serviceName string) chan []Node {
-	return make(chan []Node)
+	return m.nodeChan
 }
 
 func TestNewClient(t *testing.T) {
@@ -53,49 +62,122 @@ func TestNewClient(t *testing.T) {
 	require.NotNil(t, client)
 }
 
-func TestNewClient_with_no_available_server(t *testing.T) {
-	mock := mockRegistry{
-		services: map[string][]Node{},
-	}
+func TestNewConnectionBalancer_successul_inital_connect(t *testing.T) {
+	node, close := testRPCServer(t)
+	defer close()
 
-	client, err := NewClient("foo", &mock)
-	require.Error(t, err)
-	require.Nil(t, client)
+	mock := newMockRegistry([]Node{node})
+	c, err := newConnectionBalancer("", "foo", &mock)
+	require.NoError(t, err)
+	defer c.Close()
+
+	require.Equal(t, []Node{node}, c.selectedNodes)
+	require.Empty(t, c.errChan)
 }
 
-func TestNewClient_with_servers_failing_to_connect(t *testing.T) {
+func TestNewConnectionBalancer_with_no_available_server(t *testing.T) {
 	mock := mockRegistry{
-		services: map[string][]Node{
-			"foo": {
-				{Address: "127.0.0.1", Port: 1234},
-			},
-		},
+		nodeChan: make(chan []Node),
 	}
-
-	client, err := NewClient("foo", &mock)
+	c, err := newConnectionBalancer("", "foo", &mock)
 	require.Error(t, err)
-	require.Nil(t, client)
+	require.Nil(t, c)
 }
 
-func TestNodeToDial_uses_random_node(t *testing.T) {
-	mock := mockRegistry{
-		services: map[string][]Node{
-			"foo": {
-				{Address: "127.0.0.1", Port: 1234},
-				{Address: "127.0.0.1", Port: 3000},
-				{Address: "127.0.0.1", Port: 4321},
-			},
-		},
+func TestNewConnectionBalancer_with_servers_failing_to_connect(t *testing.T) {
+	mock := newMockRegistry([]Node{{Address: "127.0.0.1", Port: 1234}})
+	c, err := newConnectionBalancer("", "foo", &mock)
+	require.Error(t, err)
+	require.Nil(t, c)
+}
+
+func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
+	node, close := testRPCServer(t)
+	defer close()
+	mock := newMockRegistry([]Node{node})
+
+	c, err := newConnectionBalancer("", "foo", &mock)
+	require.NoError(t, err)
+	defer c.Close()
+
+	require.Equal(t, []Node{node}, c.selectedNodes)
+
+	go func() {
+		err := <-c.errChan
+		require.NoError(t, err)
+	}()
+
+	node2, close := testRPCServer(t)
+	defer close()
+	node3, close := testRPCServer(t)
+	defer close()
+	node4, close := testRPCServer(t)
+	defer close()
+
+	t.Run("test when more than max connections of nodes get sent", func(t *testing.T) {
+		go func() {
+			mock.nodeChan <- []Node{node, node2, node3, node4}
+		}()
+		time.Sleep(time.Millisecond)
+		require.Equal(t, []Node{node4, node, node2}, c.selectedNodes)
+	})
+
+	t.Run("test when connected node is removed", func(t *testing.T) {
+		go func() {
+			mock.nodeChan <- []Node{node, node3, node4}
+		}()
+		time.Sleep(time.Millisecond)
+		require.Equal(t, []Node{node, node3, node4}, c.selectedNodes)
+	})
+}
+
+func TestConnectionBalancer_roundRobinSelect(t *testing.T) {
+	clients := make([]*rpc.Client, 100)
+	for i := range clients {
+		clients[i] = &rpc.Client{}
 	}
 
-	rand.Seed(1)
-	node, err := nodeToDial("foo", &mock)
-	require.NoError(t, err)
-	require.Equal(t, mock.services["foo"][2], node)
+	c := connectionBalancer{
+		clients: clients,
+	}
+	for i := range clients {
+		client := c.roundRobinSelect()
+		require.Equal(t, clients[i], client)
+	}
 
-	// Use different seed
-	rand.Seed(3)
-	node, err = nodeToDial("foo", &mock)
+	t.Run("test for overflow", func(t *testing.T) {
+		client := c.roundRobinSelect()
+		require.Equal(t, clients[0], client)
+	})
+
+	t.Run("test for conccurency", func(t *testing.T) {
+		clientChan := make(chan *rpc.Client, len(clients))
+		go func() {
+			for _ = range clients {
+				clientChan <- c.roundRobinSelect()
+			}
+		}()
+
+		set := map[*rpc.Client]struct{}{}
+		for _ = range clients {
+			client := <-clientChan
+			_, ok := set[client]
+			require.False(t, ok)
+			set[client] = struct{}{}
+		}
+	})
+}
+
+func testRPCServer(t *testing.T) (Node, func() error) {
+	ts := rpc.NewServer()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	require.Equal(t, mock.services["foo"][1], node)
+	go func() { _ = http.Serve(l, ts) }()
+
+	n := Node{
+		Address: "127.0.0.1",
+		Port:    l.Addr().(*net.TCPAddr).Port,
+	}
+
+	return n, l.Close
 }
