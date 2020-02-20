@@ -37,29 +37,37 @@ func (m *mockRegistry) WatchService(ctx context.Context, serviceName string) cha
 	return m.nodeChan
 }
 
-func TestNewClient(t *testing.T) {
-	rpc.HandleHTTP()
-	ts := http.Server{}
-	defer ts.Close()
+type RPCTest int
+
+func (r *RPCTest) Call(x string, y *string) error {
+	*y = "who's " + x
+	return nil
+}
+
+func TestClient_Call(t *testing.T) {
+	ts := rpc.NewServer()
+	err := ts.Register(new(RPCTest))
+	require.NoError(t, err)
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	go func() { _ = ts.Serve(l) }()
+	defer l.Close()
 
-	mock := mockRegistry{
-		services: map[string][]Node{
-			"foo": {
-				{
-					Address: "127.0.0.1",
-					Port:    l.Addr().(*net.TCPAddr).Port,
-				},
-			},
-		},
+	go func() { _ = http.Serve(l, ts) }()
+
+	node := Node{
+		Address: "127.0.0.1",
+		Port:    l.Addr().(*net.TCPAddr).Port,
 	}
-
-	client, err := NewClient("foo", &mock)
+	mock := newMockRegistry([]Node{node})
+	c, err := newClient("", "foo", &mock)
 	require.NoError(t, err)
-	require.NotNil(t, client)
+	defer c.Close()
+
+	var reply string
+	err = c.Call("RPCTest.Call", "joe", &reply)
+	require.NoError(t, err)
+	require.Equal(t, "who's joe", reply)
 }
 
 func TestNewConnectionBalancer_successul_inital_connect(t *testing.T) {
