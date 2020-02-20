@@ -60,7 +60,7 @@ func (suite *EtcdDependentSuite) TestKVGetErrorsOnNoKey() {
 	require.Equal(t, val, "")
 }
 
-func (suite *EtcdDependentSuite) TestKVGetAll() {
+func (suite *EtcdDependentSuite) TestKVGetPrefix() {
 	suite.SetupTest()
 	t := suite.T()
 
@@ -85,7 +85,22 @@ func (suite *EtcdDependentSuite) TestKVGetAll() {
 	_, err = tmpKV.Put(ctx, "store/raccoon2", "uwu2")
 	require.NoError(t, err)
 
-	val, err := kvs.GetAll(ctx, "raccoon")
+	val, err := kvs.GetPrefix(ctx, "raccoon")
 	require.NoError(t, err)
 	require.Equal(t, []string{"uwu1", "uwu2"}, val, "value read back should be the same")
+}
+
+func (suite *EtcdDependentSuite) TestKVGetPrefixErrorsOnNoKey() {
+	suite.SetupTest()
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	val, err := kvs.GetPrefix(ctx, "raccoon")
+	require.Equal(t, ErrNoKey, err, "error returned should be ErrNoKey")
+	require.Nil(t, val)
 }

@@ -47,10 +47,14 @@ func (kvs *KVStore) Get(ctx context.Context, key string) (string, error) {
 }
 
 // GetAll returns all values that correspond to the supplied key
-func (kvs *KVStore) GetAll(ctx context.Context, key string) ([]string, error) {
+func (kvs *KVStore) GetPrefix(ctx context.Context, key string) ([]string, error) {
 	getres, err := kvs.kv.Get(ctx, fmt.Sprintf("%s/%s", storePrefix, key), defaultGetOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s: %w", key, err)
+	}
+
+	if len(getres.Kvs) == 0 {
+		return nil, ErrNoKey
 	}
 
 	gets := make([]string, 0)
