@@ -47,10 +47,12 @@ const defaultMaxConnections = 3
 const defaultInitalNodeTimeout = 5 * time.Second
 
 type connectionBalancer struct {
-	clientNode    string
+	clientNode string
+	seq        uint64
+
 	selectedNodes []Node
 	clients       []*rpc.Client
-	seq           uint64
+	lock          sync.RWMutex
 
 	cancel    func()
 	errChan   chan error
@@ -91,7 +93,8 @@ func (c *connectionBalancer) Get() *rpc.Client {
 
 func (c *connectionBalancer) roundRobinSelect() *rpc.Client {
 	index := atomic.AddUint64(&c.seq, uint64(1))
-	return c.clients[int(index)%len(c.clients)]
+	clients := c.getClients()
+	return clients[int(index)%len(clients)]
 }
 
 func (c *connectionBalancer) Close() error {
@@ -135,8 +138,10 @@ func (c *connectionBalancer) handleNewNodes(nodes []Node) error {
 		return err
 	}
 
+	c.lock.Lock()
 	c.clients = clients
 	c.selectedNodes = selectedNodes
+	c.lock.Unlock()
 	return nil
 }
 
@@ -179,4 +184,16 @@ func (c *connectionBalancer) connectToNodes(nodes []Node) ([]*rpc.Client, error)
 	}
 
 	return clients, nil
+}
+
+func (c *connectionBalancer) getClients() []*rpc.Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.clients
+}
+
+func (c *connectionBalancer) getSelectedNodes() []Node {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	return c.selectedNodes
 }

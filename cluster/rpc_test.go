@@ -79,7 +79,7 @@ func TestNewConnectionBalancer_successul_inital_connect(t *testing.T) {
 	require.NoError(t, err)
 	defer c.Close()
 
-	require.Equal(t, []Node{node}, c.selectedNodes)
+	require.Equal(t, []Node{node}, c.getSelectedNodes())
 	require.Empty(t, c.errChan)
 }
 
@@ -108,7 +108,7 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 	require.NoError(t, err)
 	defer c.Close()
 
-	require.Equal(t, []Node{node}, c.selectedNodes)
+	require.Equal(t, []Node{node}, c.getSelectedNodes())
 
 	go func() {
 		err := <-c.errChan
@@ -126,16 +126,16 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 		go func() {
 			mock.nodeChan <- []Node{node, node2, node3, node4}
 		}()
-		time.Sleep(time.Millisecond)
-		require.Equal(t, []Node{node4, node, node2}, c.selectedNodes)
+		time.Sleep(4 * time.Millisecond)
+		require.Equal(t, []Node{node4, node, node2}, c.getSelectedNodes())
 	})
 
 	t.Run("test when connected node is removed", func(t *testing.T) {
 		go func() {
 			mock.nodeChan <- []Node{node, node3, node4}
 		}()
-		time.Sleep(time.Millisecond)
-		require.Equal(t, []Node{node, node3, node4}, c.selectedNodes)
+		time.Sleep(4 * time.Millisecond)
+		require.Equal(t, []Node{node, node3, node4}, c.getSelectedNodes())
 	})
 }
 
@@ -161,13 +161,13 @@ func TestConnectionBalancer_roundRobinSelect(t *testing.T) {
 	t.Run("test for conccurency", func(t *testing.T) {
 		clientChan := make(chan *rpc.Client, len(clients))
 		go func() {
-			for _ = range clients {
+			for range clients {
 				clientChan <- c.roundRobinSelect()
 			}
 		}()
 
 		set := map[*rpc.Client]struct{}{}
-		for _ = range clients {
+		for range clients {
 			client := <-clientChan
 			_, ok := set[client]
 			require.False(t, ok)
