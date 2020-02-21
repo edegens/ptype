@@ -37,5 +37,7 @@ func main() {
 	}
 	fmt.Printf("server: services %v\n", services)
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", cfg.Port), nil))
+	if err := http.ListenAndServe(fmt.Sprintf(":%v", cfg.Port), nil); err != nil {
+		log.Fatal(err)
+	}
 }
