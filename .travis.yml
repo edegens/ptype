@@ -9,3 +9,4 @@ before_script:
 script:
   - golangci-lint run
   - make test
+  - cd example/calculator && ./run
