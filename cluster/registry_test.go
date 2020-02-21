@@ -206,6 +206,35 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService_stops_with_contex
 	require.False(t, ok)
 }
 
+func (suite *EtcdDependentSuite) TestEtcdRegistry_nodes() {
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	key := etcdKey(servicesPrefix, "foo", "node1")
+	_, err = sr.kv.Put(ctx, key, `{"address":"host", "port":8000}`)
+	require.NoError(t, err)
+	key = etcdKey(servicesPrefix, "foo", "node2")
+	_, err = sr.kv.Put(ctx, key, `{"address":"host2", "port":8000}`)
+	require.NoError(t, err)
+	key = etcdKey(servicesPrefix, "foo_broken_prefix_case", "node3")
+	_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
+	require.NoError(t, err)
+
+	actual, err := sr.nodes(ctx, "foo")
+	require.NoError(t, err)
+
+	expected := []Node{
+		{Address: "host", Port: 8000},
+		{Address: "host2", Port: 8000},
+	}
+	require.Equal(t, expected, actual)
+}
+
 func startTestEtcd() (string, func()) {
 	cfg := embed.NewConfig()
 
