@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/rpc"
@@ -9,6 +10,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+)
+
+var (
+	ErrNoClientAvailable = errors.New("no client nodes available")
 )
 
 type Client struct {
@@ -27,11 +32,17 @@ func newClient(host string, serviceName string, r Registry) (*Client, error) {
 
 func (c *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	client := c.conns.Get()
+	if client == nil {
+		return ErrNoClientAvailable
+	}
 	return client.Call(serviceMethod, args, reply)
 }
 
 func (c *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *rpc.Call) *rpc.Call {
 	client := c.conns.Get()
+	if client == nil {
+		return &rpc.Call{Error: ErrNoClientAvailable}
+	}
 	return client.Go(serviceMethod, args, reply, done)
 }
 
@@ -92,8 +103,11 @@ func (c *connectionBalancer) Get() *rpc.Client {
 }
 
 func (c *connectionBalancer) roundRobinSelect() *rpc.Client {
-	index := atomic.AddUint64(&c.seq, uint64(1))
 	clients := c.getClients()
+	if len(clients) == 0 {
+		return nil
+	}
+	index := atomic.AddUint64(&c.seq, uint64(1))
 	return clients[int(index)%len(clients)]
 }
 
