@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -56,7 +55,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Register() {
 	require.NoError(t, err)
 
 	t.Run("test multiple nodes registered for foo", func(t *testing.T) {
-		key := filepath.Join(servicesPrefix, "foo")
+		key := etcdKey(servicesPrefix, "foo")
 		res, err := sr.kv.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
@@ -72,7 +71,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Register() {
 	})
 
 	t.Run("test one node registered for bar", func(t *testing.T) {
-		key := filepath.Join(servicesPrefix, "bar")
+		key := etcdKey(servicesPrefix, "bar")
 		res, err := sr.kv.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
@@ -97,13 +96,13 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_Services() {
 	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
-	key := filepath.Join(servicesPrefix, "foo", "node1")
+	key := etcdKey(servicesPrefix, "foo", "node1")
 	_, err = sr.kv.Put(ctx, key, `{"address":"host", "port":8000}`)
 	require.NoError(t, err)
-	key = filepath.Join(servicesPrefix, "foo", "node2")
+	key = etcdKey(servicesPrefix, "foo", "node2")
 	_, err = sr.kv.Put(ctx, key, `{"address":"host2", "port":8000}`)
 	require.NoError(t, err)
-	key = filepath.Join(servicesPrefix, "bar", "node3")
+	key = etcdKey(servicesPrefix, "bar", "node3")
 	_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
 	require.NoError(t, err)
 
@@ -139,7 +138,7 @@ func (suite *EtcdDependentSuite) TestServiceRegistry_Leases() {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		key := filepath.Join(servicesPrefix, "bar")
+		key := etcdKey(servicesPrefix, "bar")
 		res, err := sr.kv.Get(ctx, key, defaultGetOptions...)
 		require.NoError(t, err)
 
@@ -156,7 +155,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	sr, err := newEtcdRegistry(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
-	key := filepath.Join(servicesPrefix, "foo", "node1")
+	key := etcdKey(servicesPrefix, "foo", "node1")
 	_, err = sr.kv.Put(ctx, key, `{"address":"host", "port":8000}`)
 	require.NoError(t, err)
 
@@ -169,7 +168,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	})
 
 	t.Run("channel returns all nodes on event change", func(t *testing.T) {
-		key = filepath.Join(servicesPrefix, "foo", "node3")
+		key = etcdKey(servicesPrefix, "foo", "node3")
 		_, err = sr.kv.Put(ctx, key, `{"address":"host3", "port":3000}`)
 		require.NoError(t, err)
 
@@ -180,7 +179,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 	})
 
 	t.Run("handles the deletion of a node", func(t *testing.T) {
-		key = filepath.Join(servicesPrefix, "foo", "node1")
+		key = etcdKey(servicesPrefix, "foo", "node1")
 		_, err = sr.kv.Delete(ctx, key)
 		require.NoError(t, err)
 
