@@ -2,8 +2,9 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
+	"net"
 	"sort"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	host, err := os.Hostname()
+	host, err := hostname()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read hostname: %w", err)
 	}
@@ -129,4 +130,21 @@ func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
 
 	<-e.Server.ReadyNotify()
 	return e, nil
+}
+
+func hostname() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup interface addrs: %w", err)
+	}
+
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", errors.New("no network address that aren't loopbacks")
 }
