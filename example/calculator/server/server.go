@@ -8,7 +8,6 @@ import (
 	"net/rpc"
 	"os"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/edegens/ptype/cluster"
 	"github.com/edegens/ptype/example/calculator"
 )
@@ -24,7 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	capnslog.SetGlobalLogLevel(capnslog.ERROR)
 
 	c, err := cluster.Join(context.Background(), cfg)
 	if err != nil {
