@@ -47,8 +47,8 @@ const defaultMaxConnections = 3
 const defaultInitialNodeTimeout = 5 * time.Second
 
 type connectionBalancer struct {
-	clientNode string
-	seq        uint64
+	localAddr string
+	seq       uint64
 
 	selectedNodes []Node
 	clients       []*rpc.Client
@@ -63,10 +63,10 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := &connectionBalancer{
-		clientNode: host,
-		clients:    []*rpc.Client{},
-		cancel:     cancel,
-		errChan:    make(chan error, 1),
+		localAddr: host,
+		clients:   []*rpc.Client{},
+		cancel:    cancel,
+		errChan:   make(chan error, 1),
 	}
 
 	nodesChan := r.WatchService(ctx, serviceName)
@@ -167,7 +167,7 @@ func (c *connectionBalancer) selectNodes(nodes []Node, maxConnections int) []Nod
 
 func (c *connectionBalancer) hashConnectionIndex(connNumber, nodeSize int) int {
 	h := fnv.New32a()
-	h.Write([]byte(c.clientNode + strconv.Itoa(connNumber)))
+	h.Write([]byte(c.localAddr + strconv.Itoa(connNumber)))
 	return int(h.Sum32()) % nodeSize
 }
 
