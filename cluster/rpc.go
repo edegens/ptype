@@ -44,7 +44,7 @@ func (c *Client) ConnectionErrs() chan error {
 }
 
 const defaultMaxConnections = 3
-const defaultInitalNodeTimeout = 5 * time.Second
+const defaultInitialNodeTimeout = 5 * time.Second
 
 type connectionBalancer struct {
 	clientNode string
@@ -71,14 +71,14 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 
 	nodesChan := r.WatchService(ctx, serviceName)
 
-	var initalNodes []Node
+	var initialNodes []Node
 	select {
-	case initalNodes = <-nodesChan:
-	case <-time.After(defaultInitalNodeTimeout):
-		return nil, fmt.Errorf("no inital nodes provided for %v", serviceName)
+	case initialNodes = <-nodesChan:
+	case <-time.After(defaultInitialNodeTimeout):
+		return nil, fmt.Errorf("no initial nodes provided for %v", serviceName)
 	}
 
-	if err := c.handleNewNodes(initalNodes); err != nil {
+	if err := c.handleNewNodes(initialNodes); err != nil {
 		return nil, err
 	}
 

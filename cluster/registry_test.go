@@ -162,7 +162,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_WatchService() {
 
 	nodesChan := sr.WatchService(ctx, "foo")
 
-	t.Run("channel returns the inital list of nodes before channel is created", func(t *testing.T) {
+	t.Run("channel returns the initial list of nodes before channel is created", func(t *testing.T) {
 		require.Equal(t, []Node{
 			{Address: "host", Port: 8000},
 		}, <-nodesChan)

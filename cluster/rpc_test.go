@@ -17,11 +17,11 @@ type mockRegistry struct {
 	nodeChan chan []Node
 }
 
-func newMockRegistry(initalNodes []Node) mockRegistry {
+func newMockRegistry(initialNodes []Node) mockRegistry {
 	mock := mockRegistry{
 		nodeChan: make(chan []Node),
 	}
-	go func() { mock.nodeChan <- initalNodes }()
+	go func() { mock.nodeChan <- initialNodes }()
 	return mock
 }
 
@@ -70,7 +70,7 @@ func TestClient_Call(t *testing.T) {
 	require.Equal(t, "who's joe", reply)
 }
 
-func TestNewConnectionBalancer_successul_inital_connect(t *testing.T) {
+func TestNewConnectionBalancer_successul_initial_connect(t *testing.T) {
 	node, close := testRPCServer(t)
 	defer close()
 
