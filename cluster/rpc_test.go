@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/rpc"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -110,11 +109,6 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 
 	require.Equal(t, []Node{node}, c.getSelectedNodes())
 
-	go func() {
-		err := <-c.errChan
-		require.NoError(t, err)
-	}()
-
 	node2, close := testRPCServer(t)
 	defer close()
 	node3, close := testRPCServer(t)
@@ -126,7 +120,14 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 		go func() {
 			mock.nodeChan <- []Node{node, node2, node3, node4}
 		}()
-		time.Sleep(4 * time.Millisecond)
+
+		select {
+		case err := <-c.errChan:
+			require.NoError(t, err)
+		default:
+		}
+
+		<-c.connsUpdated
 		require.Equal(t, []Node{node4, node, node2}, c.getSelectedNodes())
 	})
 
@@ -134,7 +135,14 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 		go func() {
 			mock.nodeChan <- []Node{node, node3, node4}
 		}()
-		time.Sleep(4 * time.Millisecond)
+
+		select {
+		case err := <-c.errChan:
+			require.NoError(t, err)
+		default:
+		}
+
+		<-c.connsUpdated
 		require.Equal(t, []Node{node, node3, node4}, c.getSelectedNodes())
 	})
 }

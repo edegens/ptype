@@ -52,6 +52,7 @@ type connectionBalancer struct {
 
 	selectedNodes []Node
 	clients       []*rpc.Client
+	connsUpdated  chan struct{}
 	lock          sync.RWMutex
 
 	cancel    func()
@@ -63,10 +64,11 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := &connectionBalancer{
-		localAddr: host,
-		clients:   []*rpc.Client{},
-		cancel:    cancel,
-		errChan:   make(chan error, 1),
+		localAddr:    host,
+		clients:      []*rpc.Client{},
+		connsUpdated: make(chan struct{}, 5),
+		cancel:       cancel,
+		errChan:      make(chan error, 1),
 	}
 
 	nodesChan := r.WatchService(ctx, serviceName)
@@ -81,6 +83,7 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 	if err := c.handleNewNodes(initialNodes); err != nil {
 		return nil, err
 	}
+	<-c.connsUpdated // consume the first update message
 
 	c.waitGroup.Add(1)
 	go c.watchForNewNodes(ctx, nodesChan)
@@ -142,6 +145,12 @@ func (c *connectionBalancer) handleNewNodes(nodes []Node) error {
 	c.clients = clients
 	c.selectedNodes = selectedNodes
 	c.lock.Unlock()
+
+	select {
+	case c.connsUpdated <- struct{}{}:
+	default:
+	}
+
 	return nil
 }
 
