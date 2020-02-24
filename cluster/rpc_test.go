@@ -145,6 +145,24 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 		<-c.connsUpdated
 		require.Equal(t, []Node{node, node3, node4}, c.getSelectedNodes())
 	})
+
+	t.Run("test debounce of new nodes", func(t *testing.T) {
+		go func() {
+			mock.nodeChan <- []Node{node}
+			mock.nodeChan <- []Node{node2}
+			mock.nodeChan <- []Node{node3}
+			mock.nodeChan <- []Node{node, node2, node3}
+		}()
+
+		select {
+		case err := <-c.errChan:
+			require.NoError(t, err)
+		default:
+		}
+
+		<-c.connsUpdated
+		require.Equal(t, []Node{node, node2, node3}, c.getSelectedNodes())
+	})
 }
 
 func TestConnectionBalancer_roundRobinSelect(t *testing.T) {

@@ -43,8 +43,11 @@ func (c *Client) ConnectionErrs() chan error {
 	return c.conns.errChan
 }
 
-const defaultMaxConnections = 3
-const defaultInitialNodeTimeout = 5 * time.Second
+const (
+	defaultMaxConnections     = 3
+	defaultInitialNodeTimeout = 5 * time.Second
+	defaultDebounceTime       = 3 * time.Second
+)
 
 type connectionBalancer struct {
 	localAddr string
@@ -115,19 +118,26 @@ func (c *connectionBalancer) Close() error {
 func (c *connectionBalancer) watchForNewNodes(ctx context.Context, nodesChan chan []Node) {
 	defer c.waitGroup.Done()
 
+	var newNodes []Node
 	for {
 		select {
 		case nodes := <-nodesChan:
 			if len(nodes) == 0 {
 				continue
 			}
-
-			if err := c.handleNewNodes(nodes); err != nil {
+			newNodes = nodes
+			continue
+		case <-time.After(defaultDebounceTime):
+			if newNodes == nil {
+				continue
+			}
+			if err := c.handleNewNodes(newNodes); err != nil {
 				select {
 				case c.errChan <- err:
 				default:
 				}
 			}
+			newNodes = nil
 		case <-ctx.Done():
 			return
 		}
