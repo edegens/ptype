@@ -127,16 +127,12 @@ func (suite *ClusterSuite) TestMemberAdd_errors() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-    cfg.etcdConfig.InitialCluster = fmt.Sprintf("%s,%s,%s", cfg.etcdConfig.InitialCluster, "node2=http://127.0.0.1:22380", "node3=http://127.0.0.1:32380")
+	cfg.etcdConfig.InitialCluster = fmt.Sprintf("%s,%s,%s", cfg.etcdConfig.InitialCluster, "node2=http://127.0.0.1:22380", "node3=http://127.0.0.1:32380")
 
 	// TODO add more nodes to the test
 	c, err := Join(ctx, cfg)
 	require.NoError(t, err)
 	defer c.Close()
-
-    members, err := c.MemberList(ctx)
-    require.NoError(t, err)
-    require.Equal(t, 3, len(members))
 
 	t.Run("test member add fails when the original InitialCluster when the cluster was dynamically reconfigured to have more members", func(t *testing.T) {
 		LPUrl, err := url.Parse("http://127.0.0.1:22380")
@@ -160,7 +156,7 @@ func (suite *ClusterSuite) TestMemberAdd_errors() {
 		memberCfg.APUrls = []url.URL{*APUrl}
 		memberCfg.ACUrls = []url.URL{*ACUrl}
 		memberCfg.InitialCluster = cfg.etcdConfig.InitialCluster
-		memberCfg.ClusterState = "new" 
+		memberCfg.ClusterState = "new"
 
 		_, err = c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
 		require.NoError(t, err)
@@ -190,7 +186,7 @@ func (suite *ClusterSuite) TestMemberAdd_errors() {
 		memberCfg.APUrls = []url.URL{*APUrl}
 		memberCfg.ACUrls = []url.URL{*ACUrl}
 		memberCfg.InitialCluster = cfg.etcdConfig.InitialCluster
-		memberCfg.ClusterState = "new" 
+		memberCfg.ClusterState = "new"
 
 		_, err = c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
 		require.NoError(t, err)
