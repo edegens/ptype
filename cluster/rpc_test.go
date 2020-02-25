@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -43,6 +44,12 @@ func (r *RPCTest) Call(x string, y *string) error {
 	return nil
 }
 
+func (r *RPCTest) Go(x string, y *string) error {
+	time.Sleep(time.Second)
+	*y = "who's " + x
+	return nil
+}
+
 func TestClient_Call(t *testing.T) {
 	ts := rpc.NewServer()
 	err := ts.Register(new(RPCTest))
@@ -66,6 +73,35 @@ func TestClient_Call(t *testing.T) {
 	var reply string
 	err = c.Call("RPCTest.Call", "joe", &reply)
 	require.NoError(t, err)
+	require.Equal(t, "who's joe", reply)
+}
+
+func TestClient_Go(t *testing.T) {
+	ts := rpc.NewServer()
+	err := ts.Register(new(RPCTest))
+	require.NoError(t, err)
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l.Close()
+
+	go func() { _ = http.Serve(l, ts) }()
+
+	node := Node{
+		Address: "127.0.0.1",
+		Port:    l.Addr().(*net.TCPAddr).Port,
+	}
+	mock := newMockRegistry([]Node{node})
+	c, err := newClient("", "foo", &mock)
+	require.NoError(t, err)
+	defer c.Close()
+
+	var reply string
+	call := c.Go("RPCTest.Go", "joe", &reply, nil)
+	require.NotNil(t, call)
+	require.NoError(t, call.Error)
+
+	<-call.Done
 	require.Equal(t, "who's joe", reply)
 }
 
