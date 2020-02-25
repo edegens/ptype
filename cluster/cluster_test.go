@@ -56,6 +56,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	cfg.etcdConfig.Debug = true
 	c, err := Join(ctx, cfg)
 	require.NoError(t, err)
 	defer c.Close()
@@ -113,6 +114,59 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		defer e.Close()
 
 		members, err := c.MemberList(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(members))
+
+		// Test
+
+		LPUrl, err = url.Parse("http://127.0.0.1:32380")
+		require.NoError(t, err)
+
+		LCUrl, err = url.Parse("http://127.0.0.1:32379")
+		require.NoError(t, err)
+
+		APUrl, err = url.Parse("http://127.0.0.1:32380")
+		require.NoError(t, err)
+
+		ACUrl, err = url.Parse("http://127.0.0.1:32379")
+		require.NoError(t, err)
+
+		memberName = "node3"
+		memberCfg = embed.NewConfig()
+		memberCfg.Name = memberName
+		memberCfg.Dir = "tmp3"
+		memberCfg.LPUrls = []url.URL{*LPUrl}
+		memberCfg.LCUrls = []url.URL{*LCUrl}
+		memberCfg.APUrls = []url.URL{*APUrl}
+		memberCfg.ACUrls = []url.URL{*ACUrl}
+		memberCfg.ForceNewCluster = true
+
+		<-e.Server.ReadyNotify()
+		mai, err = c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
+		require.NoError(t, err)
+
+		initialClusterStrings = []string{
+			initialClusterStringFormatter(cfg.etcdConfig.Name, cfg.etcdConfig.LPUrls[0].String()),
+			initialClusterStringFormatter(memberName, LPUrl.String()),
+		}
+		sort.Strings(initialClusterStrings)
+		initialCluster = fmt.Sprintf("%s,%s", initialClusterStrings[0], initialClusterStrings[1])
+
+		expectedmai = &MemberAddInfo{
+			InitialCluster:      initialCluster,
+			InitialClusterState: "existing",
+		}
+
+		require.NotEqual(t, expectedmai, mai)
+
+		memberCfg.InitialCluster = expectedmai.InitialCluster
+		memberCfg.ClusterState = expectedmai.InitialClusterState
+
+		e2, err := embed.StartEtcd(memberCfg)
+		require.Error(t, err)
+		defer e2.Close()
+
+		members, err = c.MemberList(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(members))
 	})
