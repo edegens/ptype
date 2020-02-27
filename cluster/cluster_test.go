@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+	"time"
 
+	"github.com/coreos/etcd/etcdserver"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.etcd.io/etcd/embed"
@@ -109,13 +111,16 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.InitialCluster = mai.InitialCluster
 		memberCfg.ClusterState = mai.InitialClusterState
 
-		e, err := embed.StartEtcd(memberCfg)
+		e, err := startEmbeddedEtcd(memberCfg)
 		require.NoError(t, err)
 		defer e.Close()
 
 		members, err := c.MemberList(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(members))
+
+		// Give time for servers to add node and wait for their health interval.
+		time.Sleep(etcdserver.HealthInterval)
 
 		// Test
 
@@ -139,9 +144,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.LCUrls = []url.URL{*LCUrl}
 		memberCfg.APUrls = []url.URL{*APUrl}
 		memberCfg.ACUrls = []url.URL{*ACUrl}
-		memberCfg.ForceNewCluster = true
 
-		<-e.Server.ReadyNotify()
 		mai, err = c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
 		require.NoError(t, err)
 
@@ -159,16 +162,16 @@ func (suite *ClusterSuite) TestMemberAdd() {
 
 		require.NotEqual(t, expectedmai, mai)
 
-		memberCfg.InitialCluster = expectedmai.InitialCluster
-		memberCfg.ClusterState = expectedmai.InitialClusterState
+		memberCfg.InitialCluster = mai.InitialCluster
+		memberCfg.ClusterState = mai.InitialClusterState
 
-		e2, err := embed.StartEtcd(memberCfg)
-		require.Error(t, err)
-		defer e2.Close()
+		e, err = startEmbeddedEtcd(memberCfg)
+		require.NoError(t, err)
+		defer e.Close()
 
 		members, err = c.MemberList(ctx)
 		require.NoError(t, err)
-		require.Equal(t, 2, len(members))
+		require.Equal(t, 3, len(members))
 	})
 }
 
