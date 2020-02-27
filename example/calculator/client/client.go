@@ -29,7 +29,7 @@ func main() {
 	}
 	fmt.Printf("client: services %v\n", services)
 
-	client, err := cluster.NewClient("arith", c.Registry)
+	client, err := c.NewClient("calculator")
 	if err != nil {
 		log.Fatal(err)
 	}

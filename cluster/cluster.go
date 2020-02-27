@@ -19,6 +19,7 @@ type Cluster struct {
 	Store    *KVStore
 	client   *clientv3.Client
 	etcd     *embed.Etcd
+	host     string
 }
 
 func Join(ctx context.Context, cfg Config) (*Cluster, error) {
@@ -62,6 +63,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		Registry: registry,
 		client:   client,
 		etcd:     e,
+		host:     host,
 	}, nil
 }
 
@@ -113,6 +115,10 @@ func (c *Cluster) Close() error {
 	c.etcd.Close()
 	<-c.etcd.Server.StopNotify()
 	return nil
+}
+
+func (c *Cluster) NewClient(serviceName string) (*Client, error) {
+	return newClient(c.host, serviceName, c.Registry)
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {

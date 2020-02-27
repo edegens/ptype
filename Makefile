@@ -1,5 +1,5 @@
 test:
-	go test -v --race ./... -timeout=15s
+	go test -v --race ./... -timeout=35s
 
 lint:
 	gofmt -w -s */**.go
