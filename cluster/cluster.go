@@ -2,8 +2,9 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
+	"net"
 	"sort"
 	"strings"
 	"time"
@@ -15,11 +16,11 @@ import (
 )
 
 type Cluster struct {
-	Registry Registry
-	Store    *KVStore
-	client   *clientv3.Client
-	etcd     *embed.Etcd
-	host     string
+	Registry  Registry
+	Store     *KVStore
+	client    *clientv3.Client
+	etcd      *embed.Etcd
+	localAddr string
 }
 
 func Join(ctx context.Context, cfg Config) (*Cluster, error) {
@@ -42,11 +43,11 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	host, err := os.Hostname()
+	addr, err := getIP()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read hostname: %w", err)
 	}
-	if err := registry.Register(ctx, cfg.ServiceName, cfg.NodeName, host, cfg.Port); err != nil {
+	if err := registry.Register(ctx, cfg.ServiceName, cfg.NodeName, addr, cfg.Port); err != nil {
 		return nil, err
 	}
 
@@ -60,10 +61,10 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}
 
 	return &Cluster{
-		Registry: registry,
-		client:   client,
-		etcd:     e,
-		host:     host,
+		Registry:  registry,
+		client:    client,
+		etcd:      e,
+		localAddr: addr,
 	}, nil
 }
 
@@ -118,7 +119,7 @@ func (c *Cluster) Close() error {
 }
 
 func (c *Cluster) NewClient(serviceName string) (*Client, error) {
-	return newClient(c.host, serviceName, c.Registry)
+	return newClient(c.localAddr, serviceName, c.Registry)
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
@@ -129,4 +130,21 @@ func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
 
 	<-e.Server.ReadyNotify()
 	return e, nil
+}
+
+func getIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", fmt.Errorf("failed to lookup interface addrs: %w", err)
+	}
+
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", errors.New("no network address that aren't loopbacks")
 }

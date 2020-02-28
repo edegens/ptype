@@ -61,7 +61,7 @@ func (er *etcdRegistry) Register(ctx context.Context, serviceName, nodeName, hos
 		return fmt.Errorf("failed to create lease for service: %w", err)
 	}
 
-	key := filepath.Join(servicesPrefix, serviceName, nodeName)
+	key := etcdKey(servicesPrefix, serviceName, nodeName)
 	if _, err = er.kv.Put(ctx, key, string(val), clientv3.WithLease(resp.ID)); err != nil {
 		return fmt.Errorf("failed to register node: %w", err)
 	}
@@ -117,7 +117,7 @@ func (er *etcdRegistry) Services(ctx context.Context) (map[string][]Node, error)
 }
 
 func (er *etcdRegistry) WatchService(ctx context.Context, serviceName string) chan []Node {
-	key := filepath.Join(servicesPrefix, serviceName)
+	key := etcdKey(servicesPrefix, serviceName)
 
 	nodesChan := make(chan []Node)
 	watchChan := er.watcher.Watch(ctx, key, clientv3.WithPrefix())
@@ -150,7 +150,7 @@ func (er *etcdRegistry) WatchService(ctx context.Context, serviceName string) ch
 }
 
 func (er *etcdRegistry) nodes(ctx context.Context, serviceName string) ([]Node, error) {
-	key := filepath.Join(servicesPrefix, serviceName)
+	key := etcdKey(servicesPrefix, serviceName)
 	res, err := er.kv.Get(ctx, key, defaultGetOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get services from etcd: %w", err)
@@ -163,4 +163,8 @@ func (er *etcdRegistry) nodes(ctx context.Context, serviceName string) ([]Node, 
 		}
 	}
 	return nodes, nil
+}
+
+func etcdKey(elems ...string) string {
+	return filepath.Join(elems...) + "/"
 }

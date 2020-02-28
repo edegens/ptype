@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/edegens/ptype/cluster"
 	"github.com/edegens/ptype/example/calculator"
 )
@@ -16,7 +16,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	capnslog.SetGlobalLogLevel(capnslog.ERROR)
 
 	c, err := cluster.Join(context.Background(), cfg)
 	if err != nil {
@@ -29,6 +28,8 @@ func main() {
 	}
 	fmt.Printf("client: services %v\n", services)
 
+	// let the http server spin up after etcd
+	time.Sleep(500 * time.Millisecond)
 	client, err := c.NewClient("calculator")
 	if err != nil {
 		log.Fatal(err)

@@ -8,7 +8,6 @@ import (
 	"net/rpc"
 	"os"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/edegens/ptype/cluster"
 	"github.com/edegens/ptype/example/calculator"
 )
@@ -24,7 +23,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	capnslog.SetGlobalLogLevel(capnslog.ERROR)
 
 	c, err := cluster.Join(context.Background(), cfg)
 	if err != nil {
@@ -37,5 +35,7 @@ func main() {
 	}
 	fmt.Printf("server: services %v\n", services)
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%v", cfg.Port), nil))
+	if err := http.ListenAndServe(fmt.Sprintf(":%v", cfg.Port), nil); err != nil {
+		log.Fatal(err)
+	}
 }
