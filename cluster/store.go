@@ -35,7 +35,7 @@ func NewKVStore(ctx context.Context, etcdAddr string) (*KVStore, error) {
 
 // Get returns the best matched value for the key provided
 func (kvs *KVStore) Get(ctx context.Context, key string) (string, error) {
-	getres, err := kvs.kv.Get(ctx, fmt.Sprintf("%s/%s", storePrefix, key), defaultGetOptions...)
+	getres, err := kvs.kv.Get(ctx, etcdKey(storePrefix, key), defaultGetOptions...)
 	if err != nil {
 		return "", fmt.Errorf("failed to get key %s: %w", key, err)
 	}

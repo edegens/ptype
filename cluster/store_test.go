@@ -35,12 +35,12 @@ func (suite *EtcdDependentSuite) TestKVGet() {
 
 	tmpKV := clientv3.NewKV(c)
 	expected := "uwu1"
-	_, err = tmpKV.Put(ctx, "store/raccoon1", expected)
+	_, err = tmpKV.Put(ctx, "store/raccoon1/", expected)
 	require.NoError(t, err)
-	_, err = tmpKV.Put(ctx, "store/raccoon2", "uwu2")
+	_, err = tmpKV.Put(ctx, "store/raccoon2/", "uwu2")
 	require.NoError(t, err)
 
-	val, err := kvs.Get(ctx, "raccoon")
+	val, err := kvs.Get(ctx, "raccoon1")
 	require.NoError(t, err)
 	require.Equal(t, expected, val, "value read back should be the same")
 }
