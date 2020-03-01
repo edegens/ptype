@@ -116,7 +116,8 @@ func (suite *EtcdDependentSuite) TestKVPut() {
 	require.NoError(t, err)
 
 	expected := "world"
-	kvs.Put(ctx, "hello", expected)
+	err = kvs.Put(ctx, "hello", expected)
+	require.NoError(t, err)
 
 	val, err := kvs.Get(ctx, "hello")
 	require.Equal(t, val, expected, "val returned should be expected")
@@ -134,7 +135,8 @@ func (suite *EtcdDependentSuite) TestKVDelete() {
 	require.NoError(t, err)
 
 	expected := "world"
-	kvs.Put(ctx, "hello", expected)
+	err = kvs.Put(ctx, "hello", expected)
+	require.NoError(t, err)
 
 	err = kvs.Delete(ctx, "hello")
 	require.NoError(t, err)
