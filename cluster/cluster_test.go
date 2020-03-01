@@ -122,8 +122,6 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		// Give time for servers to add node and wait for their health interval.
 		time.Sleep(etcdserver.HealthInterval)
 
-		// Test
-
 		LPUrl, err = url.Parse("http://127.0.0.1:32380")
 		require.NoError(t, err)
 
