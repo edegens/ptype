@@ -10,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+    "go.etcd.io/etcd/embed"
 )
 
 var (
@@ -46,6 +48,38 @@ func (c *Client) Go(serviceMethod string, args interface{}, reply interface{}, d
 	return client.Go(serviceMethod, args, reply, done)
 }
 
+type memberAddArgs struct {
+    ctx context.Context
+    name string
+    peerURL string
+}
+
+func (c *Client) MemberAdd(name, peerURL string, cfgPath string) (*embed.Etcd, error) {
+    cfg, err := ConfigFromFile(cfgPath)
+    if err != nil {
+        return nil, err
+    }
+    if err := validateNodeName(cfg); err != nil {
+        return nil, err
+    }
+
+    var reply interface{}
+    args := memberAddArgs{c.conns.ctx, name, peerURL}
+    c.Call("Cluster.MemberAdd", args, &reply)
+
+    mai := reply.(MemberAddInfo)
+
+    cfg.etcdConfig.InitialCluster = mai.InitialCluster
+    cfg.etcdConfig.ClusterState = mai.ClusterState
+
+    e, err := startEmbeddedEtcd(cfg.etcdConfig)
+    if err != nil {
+        return nil, fmt.Errorf("new member %s failed to start: %v", name, err)
+    }
+
+    return e, nil
+}
+
 func (c *Client) Close() error {
 	return c.conns.Close()
 }
@@ -69,6 +103,7 @@ type connectionBalancer struct {
 	connsUpdated  chan struct{}
 	lock          sync.RWMutex
 
+    ctx context.Context
 	cancel    func()
 	errChan   chan error
 	waitGroup sync.WaitGroup
@@ -81,6 +116,7 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 		localAddr:    host,
 		clients:      []*rpc.Client{},
 		connsUpdated: make(chan struct{}, 5),
+        ctx: ctx,
 		cancel:       cancel,
 		errChan:      make(chan error, 1),
 	}
@@ -91,7 +127,7 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 	select {
 	case initialNodes = <-nodesChan:
 	case <-time.After(defaultInitialNodeTimeout):
-		return nil, fmt.Errorf("no initial nodes provided for %v", serviceName)
+		return nil, fmt.Errorf("no initial nodes provided for %w", serviceName)
 	}
 
 	if err := c.handleNewNodes(initialNodes); err != nil {

@@ -1,0 +1,5 @@
+service_name: grep 
+node_name: node2
+port: 3030
+etcd_config_file: node2.yml
+debug: true

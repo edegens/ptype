@@ -58,7 +58,6 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cfg.etcdConfig.Debug = true
 	c, err := Join(ctx, cfg)
 	require.NoError(t, err)
 	defer c.Close()
@@ -70,48 +69,35 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	})
 
 	t.Run("test member add successfully adds new member", func(t *testing.T) {
-		LPUrl, err := url.Parse("http://127.0.0.1:22380")
+		time.Sleep(etcdserver.HealthInterval)
+        memberCfg, err := ConfigFromFile("./testdata/grep.yml")
+        require.NoError(t, err)
+
+		mai, err := c.MemberAdd(ctx, memberCfg.etcdConfig.LPUrls[0].String(), memberCfg.ServiceName, memberCfg.etcdConfig.Name, memberCfg.Port)
 		require.NoError(t, err)
 
-		LCUrl, err := url.Parse("http://127.0.0.1:22379")
+		services, err := c.Registry.Services(ctx)
 		require.NoError(t, err)
-
-		APUrl, err := url.Parse("http://127.0.0.1:22380")
-		require.NoError(t, err)
-
-		ACUrl, err := url.Parse("http://127.0.0.1:22379")
-		require.NoError(t, err)
-
-		memberName := "node2"
-		memberCfg := embed.NewConfig()
-		memberCfg.Name = memberName
-		memberCfg.Dir = "tmp2"
-		memberCfg.LPUrls = []url.URL{*LPUrl}
-		memberCfg.LCUrls = []url.URL{*LCUrl}
-		memberCfg.APUrls = []url.URL{*APUrl}
-		memberCfg.ACUrls = []url.URL{*ACUrl}
-
-		mai, err := c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
-		require.NoError(t, err)
+		require.NotEmpty(t, services["grep"])
 
 		initialClusterStrings := []string{
 			initialClusterStringFormatter(cfg.etcdConfig.Name, cfg.etcdConfig.LPUrls[0].String()),
-			initialClusterStringFormatter(memberName, LPUrl.String()),
+			initialClusterStringFormatter(memberCfg.etcdConfig.Name, memberCfg.etcdConfig.LPUrls[0].String()),
 		}
 		sort.Strings(initialClusterStrings)
 		initialCluster := fmt.Sprintf("%s,%s", initialClusterStrings[0], initialClusterStrings[1])
 
 		expectedmai := &MemberAddInfo{
 			InitialCluster:      initialCluster,
-			InitialClusterState: "existing",
+			ClusterState: "existing",
 		}
 
 		require.Equal(t, expectedmai, mai)
 
-		memberCfg.InitialCluster = mai.InitialCluster
-		memberCfg.ClusterState = mai.InitialClusterState
+		memberCfg.etcdConfig.InitialCluster = mai.InitialCluster
+		memberCfg.etcdConfig.ClusterState = mai.ClusterState
 
-		e, err := startEmbeddedEtcd(memberCfg)
+		e, err := startEmbeddedEtcd(memberCfg.etcdConfig)
 		require.NoError(t, err)
 		defer e.Close()
 
@@ -122,28 +108,32 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		// Give time for servers to add node and wait for their health interval.
 		time.Sleep(etcdserver.HealthInterval)
 
-		LPUrl, err = url.Parse("http://127.0.0.1:32380")
+        LPUrl, err := url.Parse("http://127.0.0.1:32380")
 		require.NoError(t, err)
 
-		LCUrl, err = url.Parse("http://127.0.0.1:32379")
+        LCUrl, err := url.Parse("http://127.0.0.1:32379")
 		require.NoError(t, err)
 
-		APUrl, err = url.Parse("http://127.0.0.1:32380")
+        APUrl, err := url.Parse("http://127.0.0.1:32380")
 		require.NoError(t, err)
 
-		ACUrl, err = url.Parse("http://127.0.0.1:32379")
+        ACUrl, err := url.Parse("http://127.0.0.1:32379")
 		require.NoError(t, err)
 
-		memberName = "node3"
-		memberCfg = embed.NewConfig()
-		memberCfg.Name = memberName
-		memberCfg.Dir = "tmp3"
-		memberCfg.LPUrls = []url.URL{*LPUrl}
-		memberCfg.LCUrls = []url.URL{*LCUrl}
-		memberCfg.APUrls = []url.URL{*APUrl}
-		memberCfg.ACUrls = []url.URL{*ACUrl}
+        memberName := "node3"
+		memberCfg = &Config{
+            ServiceName: "testservice",
+            Port: 8080,
+            etcdConfig: embed.NewConfig(),
+        }
+		memberCfg.etcdConfig.Name = memberName
+		memberCfg.etcdConfig.Dir = "tmp3"
+		memberCfg.etcdConfig.LPUrls = []url.URL{*LPUrl}
+		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl}
+		memberCfg.etcdConfig.APUrls = []url.URL{*APUrl}
+		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl}
 
-		mai, err = c.MemberAdd(ctx, memberCfg.Name, memberCfg.LPUrls[0].String())
+		mai, err = c.MemberAdd(ctx, memberCfg.etcdConfig.LPUrls[0].String(), memberCfg.ServiceName, memberCfg.etcdConfig.Name, memberCfg.Port)
 		require.NoError(t, err)
 
 		initialClusterStrings = []string{
@@ -155,15 +145,15 @@ func (suite *ClusterSuite) TestMemberAdd() {
 
 		expectedmai = &MemberAddInfo{
 			InitialCluster:      initialCluster,
-			InitialClusterState: "existing",
+			ClusterState: "existing",
 		}
 
 		require.NotEqual(t, expectedmai, mai)
 
-		memberCfg.InitialCluster = mai.InitialCluster
-		memberCfg.ClusterState = mai.InitialClusterState
+		memberCfg.etcdConfig.InitialCluster = mai.InitialCluster
+		memberCfg.etcdConfig.ClusterState = mai.ClusterState
 
-		e, err = startEmbeddedEtcd(memberCfg)
+		e, err = startEmbeddedEtcd(memberCfg.etcdConfig)
 		require.NoError(t, err)
 		defer e.Close()
 

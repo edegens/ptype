@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+    "net/url"
 	"sort"
 	"strings"
 	"time"
@@ -23,7 +24,7 @@ type Cluster struct {
 	localAddr string
 }
 
-func Join(ctx context.Context, cfg Config) (*Cluster, error) {
+func Join(ctx context.Context, cfg *Config) (*Cluster, error) {
 	if cfg.Debug {
 		logger, err := zap.NewDevelopment()
 		if err != nil {
@@ -47,6 +48,9 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read hostname: %w", err)
 	}
+    if err := validateNodeName(cfg); err != nil {
+        return nil, err
+    }
 	if err := registry.Register(ctx, cfg.ServiceName, cfg.NodeName, addr, cfg.Port); err != nil {
 		return nil, err
 	}
@@ -70,19 +74,29 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 
 type MemberAddInfo struct {
 	InitialCluster      string
-	InitialClusterState string
+	ClusterState string
 }
 
-func (c *Cluster) MemberAdd(ctx context.Context, name, peerURL string) (*MemberAddInfo, error) {
+func (c *Cluster) MemberAdd(ctx context.Context, peerURL, serviceName, nodeName string, port int) (*MemberAddInfo, error) {
 	mresp, err := c.client.MemberAdd(ctx, []string{peerURL})
 	if err != nil {
-		return nil, fmt.Errorf("failed to add member with peerURL n%v: %w", peerURL, err)
+        return nil, fmt.Errorf("failed to add member with peerURL %v: %w", peerURL, err)
 	}
+
+    addrURL, err := url.Parse(peerURL)
+    if err != nil {
+        return nil, fmt.Errorf("failed to parse peerURL %v: %w", peerURL, err)
+    }
+    addr := fmt.Sprintf("%s://%s", addrURL.Scheme, addrURL.Host)
+
+    if err := c.Registry.Register(ctx, serviceName, nodeName, addr, port); err != nil {
+        return nil, err
+    }
 
 	initialClusterStrings := make([]string, 0, 2)
 	for _, member := range mresp.Members {
 		if member.Name == "" && strings.Compare(peerURL, member.PeerURLs[0]) == 0 {
-			initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(name, member.PeerURLs[0]))
+			initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(nodeName, member.PeerURLs[0]))
 		} else {
 			initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(member.Name, member.PeerURLs[0]))
 		}
@@ -93,7 +107,7 @@ func (c *Cluster) MemberAdd(ctx context.Context, name, peerURL string) (*MemberA
 
 	mai := &MemberAddInfo{
 		InitialCluster:      initialCluster,
-		InitialClusterState: "existing",
+		ClusterState: "existing",
 	}
 
 	return mai, nil
@@ -147,4 +161,16 @@ func getIP() (string, error) {
 	}
 
 	return "", errors.New("no network address that aren't loopbacks")
+}
+
+func validateNodeName(cfg *Config) error {
+    if cfg.NodeName == "" && cfg.etcdConfig.Name != "" {
+        cfg.NodeName = cfg.etcdConfig.Name
+    } else if cfg.NodeName != "" && cfg.etcdConfig.Name == "" {
+        cfg.etcdConfig.Name = cfg.NodeName
+    } else if cfg.NodeName != cfg.etcdConfig.Name {
+        return fmt.Errorf("service config file node name (%v) and node config file node name (%v) do not match", cfg.NodeName, cfg.etcdConfig.Name)
+    }
+
+    return nil
 }
