@@ -104,3 +104,58 @@ func (suite *EtcdDependentSuite) TestKVGetPrefixErrorsOnNoKey() {
 	require.Equal(t, ErrNoKey, err, "error returned should be ErrNoKey")
 	require.Nil(t, val)
 }
+
+func (suite *EtcdDependentSuite) TestKVPut() {
+	suite.SetupTest()
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	expected := "world"
+	err = kvs.Put(ctx, "hello", expected)
+	require.NoError(t, err)
+
+	val, err := kvs.Get(ctx, "hello")
+	require.Equal(t, val, expected, "val returned should be expected")
+	require.NoError(t, err)
+}
+
+func (suite *EtcdDependentSuite) TestKVDelete() {
+	suite.SetupTest()
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	expected := "world"
+	err = kvs.Put(ctx, "hello", expected)
+	require.NoError(t, err)
+
+	err = kvs.Delete(ctx, "hello")
+	require.NoError(t, err)
+
+	val, err := kvs.Get(ctx, "hello")
+	require.Equal(t, err, ErrNoKey, "no key should be left after deletion")
+	require.Equal(t, val, "")
+}
+
+func (suite *EtcdDependentSuite) TestKVDeleteNoKey() {
+	suite.SetupTest()
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	err = kvs.Delete(ctx, "hello")
+	require.Equal(t, err, ErrNoKey, "no key to delete should yield ErrNoKey")
+}

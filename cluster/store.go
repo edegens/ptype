@@ -11,7 +11,7 @@ import (
 const storePrefix = "store"
 
 var (
-	ErrNoKey = errors.New("Key does not exist in store")
+	ErrNoKey = errors.New("Key could not be found")
 )
 
 type KVStore struct {
@@ -63,4 +63,25 @@ func (kvs *KVStore) GetPrefix(ctx context.Context, key string) ([]string, error)
 	}
 
 	return gets, nil
+}
+
+// Put sets the value for the given key
+func (kvs *KVStore) Put(ctx context.Context, key, value string) error {
+	_, err := kvs.kv.Put(ctx, etcdKey(storePrefix, key), value)
+	if err != nil {
+		return fmt.Errorf("failed to put (key, value) (%s, %s): %w", key, value, err)
+	}
+	return nil
+}
+
+// Delete deletes the given key
+func (kvs *KVStore) Delete(ctx context.Context, key string) error {
+	delres, err := kvs.kv.Delete(ctx, etcdKey(storePrefix, key))
+	if err != nil {
+		return fmt.Errorf("failed to delete key %s: %w", key, err)
+	}
+	if delres.Deleted == 0 {
+		return ErrNoKey
+	}
+	return nil
 }
