@@ -1,0 +1,28 @@
+# Human-readable name for this member.
+name: worker_etcd_2
+
+# Path to the data directory.
+data-dir: tmp_worker_etcd_2
+
+# List of comma separated URLs to listen on for peer traffic.
+listen-peer-urls: http://127.0.0.1:2480
+
+# List of comma separated URLs to listen on for client traffic.
+listen-client-urls: http://127.0.0.1:2479
+
+# List of this member's peer URLs to advertise to the rest of the cluster.
+# The URLs needed to be a comma-separated list.
+initial-advertise-peer-urls: http://127.0.0.1:2480
+
+# List of this member's client URLs to advertise to the public.
+# The URLs needed to be a comma-separated list.
+advertise-client-urls: http://127.0.0.1:2479
+
+# Initial cluster configuration for bootstrapping.
+initial-cluster: worker_etcd_1=http://127.0.0.1:2380,worker_etcd_2=http://127.0.0.1:2480,coordinator_etcd_1=http://127.0.0.1:22380
+
+# Initial cluster token for the etcd cluster during bootstrap.
+initial-cluster-token: 'etcd-cluster'
+
+# Initial cluster state ('new' or 'existing').
+initial-cluster-state: 'existing'

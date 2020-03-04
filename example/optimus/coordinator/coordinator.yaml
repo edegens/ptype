@@ -1,0 +1,4 @@
+service_name: coordinator
+node_name: coordinator_1
+port: 21234
+etcd_config_file: coordinator_etcd.yaml
