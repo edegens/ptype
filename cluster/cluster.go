@@ -75,20 +75,6 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}, nil
 }
 
-func memberAdd(ctx context.Context, client *clientv3.Client, peerUrls []url.URL) error {
-	peerUrlStrings := make([]string, len(peerUrls))
-	for i, url := range peerUrls {
-		peerUrlStrings[i] = url.String()
-	}
-
-	_, err := client.MemberAdd(ctx, peerUrlStrings)
-	if err != nil {
-		return fmt.Errorf("failed to add member with peerURLs %v: %w", peerUrls, err)
-	}
-
-	return nil
-}
-
 func (c *Cluster) MemberList(ctx context.Context) ([]*etcdserverpb.Member, error) {
 	resp, err := c.client.MemberList(ctx)
 	if err != nil {
@@ -106,6 +92,24 @@ func (c *Cluster) Close() error {
 
 func (c *Cluster) NewClient(serviceName string) (*Client, error) {
 	return newClient(c.localAddr, serviceName, c.Registry)
+}
+
+func memberAdd(ctx context.Context, client *clientv3.Client, peerUrls []url.URL) error {
+	peerUrlStrings := make([]string, len(peerUrls))
+	for i, url := range peerUrls {
+		peerUrlStrings[i] = url.String()
+	}
+
+	_, err := client.MemberAdd(ctx, peerUrlStrings)
+	if err != nil {
+		return fmt.Errorf("failed to add member with peerURLs %v: %w", peerUrls, err)
+	}
+
+	return nil
+}
+
+func initialClusterStringFormatter(name, peerUrl string) string {
+    return fmt.Sprintf("%s=%s", name, peerUrl)
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
