@@ -2,7 +2,6 @@ package cluster
 
 import (
 	"context"
-    "fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ func (suite *ClusterSuite) TestJoin() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, err := Join(ctx, cfg)
+	c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -56,7 +55,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, err := Join(ctx, cfg)
+	c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -91,10 +90,9 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl}
 		memberCfg.etcdConfig.APUrls = []url.URL{*APUrl}
 		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl}
-		memberCfg.etcdConfig.InitialCluster = fmt.Sprintf("%s,%s", cfg.etcdConfig.InitialCluster, initialClusterStringFormatter(memberCfg.etcdConfig.Name, memberCfg.etcdConfig.LPUrls[0].String()))
-		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting 
+		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting
 
-		c2, err := Join(ctx, *memberCfg)
+		c2, err := Join(ctx, *memberCfg, urlsToString(cfg.etcdConfig.LCUrls))
 		require.NoError(t, err)
 		defer c2.Close()
 
@@ -128,23 +126,21 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		ACUrl2, err := url.Parse("http://127.0.0.1:42379")
 		require.NoError(t, err)
 
-        initialCluster := memberCfg.etcdConfig.InitialCluster
 		memberCfg = &Config{
 			ServiceName: "testservice2",
 			NodeName:    "node3",
 			Port:        8080,
 			etcdConfig:  embed.NewConfig(),
 		}
-		memberCfg.etcdConfig.InitialCluster = fmt.Sprintf("%s,%s,%s", initialCluster, initialClusterStringFormatter("node3", LPUrl.String()), initialClusterStringFormatter("node3", LPUrl2.String()))
 		memberCfg.etcdConfig.Name = "node3"
 		memberCfg.etcdConfig.Dir = "tmp3"
 		memberCfg.etcdConfig.LPUrls = []url.URL{*LPUrl, *LPUrl2}
 		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl, *LCUrl2}
 		memberCfg.etcdConfig.APUrls = []url.URL{*APUrl, *APUrl2}
 		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl, *ACUrl2}
-		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting 
+		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting
 
-		c3, err := Join(ctx, *memberCfg)
+		c3, err := Join(ctx, *memberCfg, urlsToString(cfg.etcdConfig.LCUrls))
 		require.NoError(t, err)
 		defer c3.Close()
 

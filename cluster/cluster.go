@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/coreos/etcd/etcdserver/etcdserverpb"
@@ -22,7 +24,7 @@ type Cluster struct {
 	localAddr string
 }
 
-func Join(ctx context.Context, cfg Config) (*Cluster, error) {
+func Join(ctx context.Context, cfg Config, clientUrls []string) (*Cluster, error) {
 	if cfg.Debug {
 		logger, err := zap.NewDevelopment()
 		if err != nil {
@@ -31,10 +33,8 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		zap.ReplaceGlobals(logger)
 	}
 
-	//clientUrl := cfg.etcdConfig.LCUrls[0].String()
-    clientUrl := "http://127.0.0.1:12379"
 	clientCfg := clientv3.Config{
-		Endpoints:   []string{clientUrl},
+		Endpoints:   clientUrls,
 		DialTimeout: 5 * time.Second,
 	}
 	client, err := clientv3.New(clientCfg)
@@ -42,11 +42,11 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
 	}
 
-	if (cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting) {
-		if err := memberAdd(ctx, client, cfg.etcdConfig.LPUrls); err != nil {
+	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting {
+		cfg.etcdConfig.InitialCluster, err = memberAdd(ctx, client, *cfg.etcdConfig)
+		if err != nil {
 			return nil, err
 		}
-        time.Sleep(10*time.Second)
 	}
 
 	e, err := startEmbeddedEtcd(cfg.etcdConfig)
@@ -54,7 +54,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
-	registry, err := newEtcdRegistry(ctx, clientUrl)
+	registry, err := newEtcdRegistry(ctx, clientUrls)
 	if err != nil {
 		return nil, err
 	}
@@ -94,22 +94,45 @@ func (c *Cluster) NewClient(serviceName string) (*Client, error) {
 	return newClient(c.localAddr, serviceName, c.Registry)
 }
 
-func memberAdd(ctx context.Context, client *clientv3.Client, peerUrls []url.URL) error {
-	peerUrlStrings := make([]string, len(peerUrls))
-	for i, url := range peerUrls {
+func memberAdd(ctx context.Context, client *clientv3.Client, cfg embed.Config) (string, error) {
+	peerUrlStrings := make([]string, len(cfg.LPUrls))
+	for i, url := range cfg.LPUrls {
 		peerUrlStrings[i] = url.String()
 	}
 
-	_, err := client.MemberAdd(ctx, peerUrlStrings)
+	mresp, err := client.MemberAdd(ctx, peerUrlStrings)
 	if err != nil {
-		return fmt.Errorf("failed to add member with peerURLs %v: %w", peerUrls, err)
+		return "", fmt.Errorf("failed to add member with peerURLs %v: %w", cfg.LPUrls, err)
 	}
 
-	return nil
+	initialClusterStrings := make([]string, 0, 1+len(cfg.LPUrls))
+	for _, url := range cfg.LPUrls {
+		initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(cfg.Name, url.String()))
+	}
+	for _, member := range mresp.Members {
+		if member.Name != "" {
+			for _, url := range member.PeerURLs {
+				initialClusterStrings = append(initialClusterStrings, initialClusterStringFormatter(member.Name, url))
+			}
+		}
+	}
+	sort.Strings(initialClusterStrings)
+
+	initialCluster := strings.Join(initialClusterStrings, ",")
+
+	return initialCluster, nil
 }
 
 func initialClusterStringFormatter(name, peerUrl string) string {
-    return fmt.Sprintf("%s=%s", name, peerUrl)
+	return fmt.Sprintf("%s=%s", name, peerUrl)
+}
+
+func urlsToString(urls []url.URL) []string {
+	urlStrings := make([]string, len(urls))
+	for i, url := range urls {
+		urlStrings[i] = url.String()
+	}
+	return urlStrings
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
