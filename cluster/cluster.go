@@ -25,16 +25,18 @@ type Cluster struct {
 }
 
 func Join(ctx context.Context, cfg *Config, clientUrls []string) (*Cluster, error) {
-	if err := validateNodeName(cfg); err != nil {
-		return nil, err
-	}
-
 	if cfg.Debug {
 		logger, err := zap.NewDevelopment()
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize logger: %w", err)
 		}
 		zap.ReplaceGlobals(logger)
+	}
+
+	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagNew || len(clientUrls) == 0 {
+		clientUrls = urlsToString(cfg.etcdConfig.LCUrls)
+	} else if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting && len(clientUrls) == 0 {
+		return nil, fmt.Errorf("joining an existing cluster requires at least one client url from a member from the existing cluster")
 	}
 
 	clientCfg := clientv3.Config{
@@ -137,18 +139,6 @@ func urlsToString(urls []url.URL) []string {
 		urlStrings[i] = url.String()
 	}
 	return urlStrings
-}
-
-func validateNodeName(cfg *Config) error {
-	if cfg.NodeName == "" && cfg.etcdConfig.Name != "" {
-		cfg.NodeName = cfg.etcdConfig.Name
-	} else if cfg.NodeName != "" && cfg.etcdConfig.Name == "" {
-		cfg.etcdConfig.Name = cfg.NodeName
-	} else if cfg.NodeName != cfg.etcdConfig.Name {
-		return fmt.Errorf("service config file node name (%v) and node config file node name (%v) do not match", cfg.NodeName, cfg.etcdConfig.Name)
-	}
-
-	return nil
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {

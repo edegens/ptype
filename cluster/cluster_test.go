@@ -35,7 +35,7 @@ func (suite *ClusterSuite) TestJoin() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
+	c, err := Join(ctx, cfg, []string{})
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -55,7 +55,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
+	c, err := Join(ctx, cfg, []string{})
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -147,39 +147,6 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		members, err = c.MemberList(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(members))
-	})
-}
-
-func (suite *ClusterSuite) Test_validateNodeName() {
-	t := suite.T()
-
-	cfg, err := ConfigFromFile("./testdata/ping.yml")
-	require.NoError(t, err)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	t.Run("test node name validation throws error", func(t *testing.T) {
-		cfg.NodeName = "error"
-
-		err := validateNodeName(cfg)
-		require.Error(t, err)
-	})
-
-	t.Run("validation changes node names appropriately and join works when cfg.NodeName is an empty string", func(t *testing.T) {
-		cfg.NodeName = ""
-
-		c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
-		require.NoError(t, err)
-		defer c.Close()
-	})
-
-	t.Run("validation changes node names appropriately and join works when cfg.etcdConfig.Name is an empty string", func(t *testing.T) {
-		cfg.etcdConfig.Name = ""
-
-		c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
-		require.NoError(t, err)
-		defer c.Close()
 	})
 }
 
