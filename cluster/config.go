@@ -19,8 +19,8 @@ type Config struct {
 	etcdConfig *embed.Config
 }
 
-func ConfigFromFile(cfgPath string) (Config, error) {
-	var cfg Config
+func ConfigFromFile(cfgPath string) (*Config, error) {
+	var cfg *Config
 
 	cfgBytes, err := ioutil.ReadFile(cfgPath)
 	if err != nil {

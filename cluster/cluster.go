@@ -24,7 +24,11 @@ type Cluster struct {
 	localAddr string
 }
 
-func Join(ctx context.Context, cfg Config, clientUrls []string) (*Cluster, error) {
+func Join(ctx context.Context, cfg *Config, clientUrls []string) (*Cluster, error) {
+	if err := validateNodeName(cfg); err != nil {
+		return nil, err
+	}
+
 	if cfg.Debug {
 		logger, err := zap.NewDevelopment()
 		if err != nil {
@@ -133,6 +137,18 @@ func urlsToString(urls []url.URL) []string {
 		urlStrings[i] = url.String()
 	}
 	return urlStrings
+}
+
+func validateNodeName(cfg *Config) error {
+	if cfg.NodeName == "" && cfg.etcdConfig.Name != "" {
+		cfg.NodeName = cfg.etcdConfig.Name
+	} else if cfg.NodeName != "" && cfg.etcdConfig.Name == "" {
+		cfg.etcdConfig.Name = cfg.NodeName
+	} else if cfg.NodeName != cfg.etcdConfig.Name {
+		return fmt.Errorf("service config file node name (%v) and node config file node name (%v) do not match", cfg.NodeName, cfg.etcdConfig.Name)
+	}
+
+	return nil
 }
 
 func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {

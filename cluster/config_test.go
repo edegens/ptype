@@ -10,13 +10,13 @@ func TestConfigFromFile(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		path      string
-		expected  Config
+		expected  *Config
 		expectErr bool
 	}{
 		{
 			name: "simple config",
 			path: "testdata/ping.yml",
-			expected: Config{
+			expected: &Config{
 				ServiceName:    "ping",
 				NodeName:       "node1",
 				Port:           3000,

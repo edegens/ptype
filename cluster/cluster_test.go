@@ -92,7 +92,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl}
 		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting
 
-		c2, err := Join(ctx, *memberCfg, urlsToString(cfg.etcdConfig.LCUrls))
+		c2, err := Join(ctx, memberCfg, urlsToString(cfg.etcdConfig.LCUrls))
 		require.NoError(t, err)
 		defer c2.Close()
 
@@ -140,13 +140,46 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl, *ACUrl2}
 		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting
 
-		c3, err := Join(ctx, *memberCfg, urlsToString(cfg.etcdConfig.LCUrls))
+		c3, err := Join(ctx, memberCfg, urlsToString(cfg.etcdConfig.LCUrls))
 		require.NoError(t, err)
 		defer c3.Close()
 
 		members, err = c.MemberList(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(members))
+	})
+}
+
+func (suite *ClusterSuite) Test_validateNodeName() {
+	t := suite.T()
+
+	cfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t.Run("test node name validation throws error", func(t *testing.T) {
+		cfg.NodeName = "error"
+
+		err := validateNodeName(cfg)
+		require.Error(t, err)
+	})
+
+	t.Run("validation changes node names appropriately and join works when cfg.NodeName is an empty string", func(t *testing.T) {
+		cfg.NodeName = ""
+
+		c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
+		require.NoError(t, err)
+		defer c.Close()
+	})
+
+	t.Run("validation changes node names appropriately and join works when cfg.etcdConfig.Name is an empty string", func(t *testing.T) {
+		cfg.etcdConfig.Name = ""
+
+		c, err := Join(ctx, cfg, urlsToString(cfg.etcdConfig.LCUrls))
+		require.NoError(t, err)
+		defer c.Close()
 	})
 }
 
