@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+    "fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -90,8 +91,8 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl}
 		memberCfg.etcdConfig.APUrls = []url.URL{*APUrl}
 		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl}
-		memberCfg.etcdConfig.InitialCluster = cfg.etcdConfig.InitialCluster
-		memberCfg.etcdConfig.ClusterState = "existing"
+		memberCfg.etcdConfig.InitialCluster = fmt.Sprintf("%s,%s", cfg.etcdConfig.InitialCluster, initialClusterStringFormatter(memberCfg.etcdConfig.Name, memberCfg.etcdConfig.LPUrls[0].String()))
+		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting 
 
 		c2, err := Join(ctx, *memberCfg)
 		require.NoError(t, err)
@@ -140,8 +141,8 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl, *LCUrl2}
 		memberCfg.etcdConfig.APUrls = []url.URL{*APUrl, *APUrl2}
 		memberCfg.etcdConfig.ACUrls = []url.URL{*ACUrl, *ACUrl2}
-		memberCfg.etcdConfig.InitialCluster = cfg.etcdConfig.InitialCluster
-		memberCfg.etcdConfig.ClusterState = "existing"
+		memberCfg.etcdConfig.InitialCluster = fmt.Sprintf("%s,%s", cfg.etcdConfig.InitialCluster, initialClusterStringFormatter(memberCfg.etcdConfig.Name, memberCfg.etcdConfig.LPUrls[0].String()))
+		memberCfg.etcdConfig.ClusterState = embed.ClusterStateFlagExisting 
 
 		c3, err := Join(ctx, *memberCfg)
 		require.NoError(t, err)
@@ -151,6 +152,10 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		require.NoError(t, err)
 		require.Equal(t, 3, len(members))
 	})
+}
+
+func initialClusterStringFormatter(name, peerUrl string) string {
+    return fmt.Sprintf("%s=%s", name, peerUrl)
 }
 
 func removeDirs(glob string) error {
