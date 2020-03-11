@@ -33,7 +33,7 @@ func Join(ctx context.Context, cfg *Config, clientUrls []string) (*Cluster, erro
 		zap.ReplaceGlobals(logger)
 	}
 
-	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagNew || len(clientUrls) == 0 {
+	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagNew && len(clientUrls) == 0 {
 		clientUrls = urlsToString(cfg.etcdConfig.LCUrls)
 	} else if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting && len(clientUrls) == 0 {
 		return nil, fmt.Errorf("joining an existing cluster requires at least one client url from a member from the existing cluster")
