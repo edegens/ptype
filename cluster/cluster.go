@@ -24,7 +24,7 @@ type Cluster struct {
 	localAddr string
 }
 
-func Join(ctx context.Context, cfg *Config, clientUrls []string) (*Cluster, error) {
+func Join(ctx context.Context, cfg Config, clientUrls []string) (*Cluster, error) {
 	if cfg.Debug {
 		logger, err := zap.NewDevelopment()
 		if err != nil {

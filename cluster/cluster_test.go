@@ -78,7 +78,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		ACUrl, err := url.Parse("http://127.0.0.1:22379")
 		require.NoError(t, err)
 
-		memberCfg := &Config{
+		memberCfg := Config{
 			ServiceName: "testservice",
 			NodeName:    "node2",
 			Port:        3030,
@@ -126,7 +126,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		ACUrl2, err := url.Parse("http://127.0.0.1:42379")
 		require.NoError(t, err)
 
-		memberCfg = &Config{
+		memberCfg = Config{
 			ServiceName: "testservice2",
 			NodeName:    "node3",
 			Port:        8080,
