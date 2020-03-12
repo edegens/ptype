@@ -26,13 +26,6 @@ const (
 	SortDescend
 )
 
-func defaultOpOption() []clientv3.OpOption {
-	return []clientv3.OpOption{
-		clientv3.WithPrefix(),
-		clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend),
-	}
-}
-
 // WithSort specifies the ordering in 'Get' request. It requires
 // 'WithRange' and/or 'WithPrefix' to be specified too.
 // 'target' specifies the target to sort by: key, version, revisions, value.
