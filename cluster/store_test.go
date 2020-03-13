@@ -90,6 +90,29 @@ func (suite *EtcdDependentSuite) TestKVGetWithPrefix() {
 	require.Equal(t, []string{"uwu1", "uwu2"}, val, "value read back should be the same")
 }
 
+func (suite *EtcdDependentSuite) TestKVGetWithMultipleOptions() {
+	suite.SetupTest()
+	t := suite.T()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	require.NoError(t, err)
+
+	expected := []string{"world1", "world2"}
+	err = kvs.Put(ctx, "hello1", expected[0])
+	require.NoError(t, err)
+	err = kvs.Put(ctx, "hello2", expected[1])
+	require.NoError(t, err)
+	err = kvs.Put(ctx, "hello3", "world3")
+	require.NoError(t, err)
+
+	vals, err := kvs.Get(ctx, "hello", WithPrefix(), WithLimit(2), WithSerializable())
+	require.Equal(t, vals, expected, "val returned should be expected")
+	require.NoError(t, err)
+}
+
 func (suite *EtcdDependentSuite) TestKVPut() {
 	suite.SetupTest()
 	t := suite.T()
