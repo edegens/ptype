@@ -53,8 +53,8 @@ func (kvs *KVStore) Get(ctx context.Context, key string, options ...clientv3.OpO
 }
 
 // Put sets the value for the given key
-func (kvs *KVStore) Put(ctx context.Context, key, value string) error {
-	_, err := kvs.kv.Put(ctx, filepath.Join(storePrefix, key), value)
+func (kvs *KVStore) Put(ctx context.Context, key, value string, options ...clientv3.OpOption) error {
+	_, err := kvs.kv.Put(ctx, filepath.Join(storePrefix, key), value, options...)
 	if err != nil {
 		return fmt.Errorf("failed to put (key, value) (%s, %s): %w", key, value, err)
 	}
@@ -62,8 +62,8 @@ func (kvs *KVStore) Put(ctx context.Context, key, value string) error {
 }
 
 // Delete deletes the given key
-func (kvs *KVStore) Delete(ctx context.Context, key string) error {
-	delres, err := kvs.kv.Delete(ctx, filepath.Join(storePrefix, key))
+func (kvs *KVStore) Delete(ctx context.Context, key string, options ...clientv3.OpOption) error {
+	delres, err := kvs.kv.Delete(ctx, filepath.Join(storePrefix, key), options...)
 	if err != nil {
 		return fmt.Errorf("failed to delete key %s: %w", key, err)
 	}
