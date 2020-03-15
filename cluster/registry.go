@@ -31,14 +31,14 @@ type etcdRegistry struct {
 	cli     *clientv3.Client
 }
 
-func newEtcdRegistry(ctx context.Context, etcdAddr string) (*etcdRegistry, error) {
+func newEtcdRegistry(ctx context.Context, etcdAddrs []string) (*etcdRegistry, error) {
 	cfg := clientv3.Config{
-		Endpoints:   []string{etcdAddr},
+		Endpoints:   etcdAddrs,
 		DialTimeout: 5 * time.Second,
 	}
 	c, err := clientv3.New(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd client from addr %v: %w", etcdAddr, err)
+		return nil, fmt.Errorf("failed to create etcd client from addresses %v: %w", etcdAddrs, err)
 	}
 
 	return &etcdRegistry{

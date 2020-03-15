@@ -19,14 +19,14 @@ type KVStore struct {
 	kv clientv3.KV
 }
 
-func NewKVStore(ctx context.Context, etcdAddr string) (*KVStore, error) {
+func NewKVStore(ctx context.Context, etcdAddrs []string) (*KVStore, error) {
 	cfg := clientv3.Config{
-		Endpoints:   []string{etcdAddr},
+		Endpoints:   etcdAddrs,
 		DialTimeout: 5 * time.Second,
 	}
 	c, err := clientv3.New(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create etcd client from addr %v: %w", etcdAddr, err)
+		return nil, fmt.Errorf("failed to create etcd client from addresses %v: %w", etcdAddrs, err)
 	}
 
 	return &KVStore{

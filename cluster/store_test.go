@@ -9,7 +9,7 @@ import (
 )
 
 func TestNewKVStore(t *testing.T) {
-	store, err := NewKVStore(context.Background(), "")
+	store, err := NewKVStore(context.Background(), []string{""})
 	require.NoError(t, err)
 	require.NotNil(t, store)
 }
@@ -26,7 +26,7 @@ func (suite *EtcdDependentSuite) TestKVGet() {
 
 	// set up raw connection for test setup
 	cfg := clientv3.Config{
-		Endpoints:   []string{suite.testEtcdAddr},
+		Endpoints:   suite.testEtcdAddr,
 		DialTimeout: 5 * time.Second,
 	}
 	c, err := clientv3.New(cfg)
@@ -72,7 +72,7 @@ func (suite *EtcdDependentSuite) TestKVGetWithPrefix() {
 
 	// set up raw connection for test setup
 	cfg := clientv3.Config{
-		Endpoints:   []string{suite.testEtcdAddr},
+		Endpoints:   suite.testEtcdAddr,
 		DialTimeout: 5 * time.Second,
 	}
 	c, err := clientv3.New(cfg)
