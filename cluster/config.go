@@ -14,7 +14,7 @@ type Config struct {
 	NodeName                 string   `json:"node_name"`
 	Port                     int      `json:"port"`
 	EtcdConfigFile           string   `json:"etcd_config_file"`
-	InitialClusterClientUrls []string `json"initial_cluster_client_urls"`
+	InitialClusterClientUrls []string `json:"initial_cluster_client_urls"`
 	Debug                    bool     `json:"debug"`
 
 	etcdConfig *embed.Config
