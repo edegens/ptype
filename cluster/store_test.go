@@ -40,9 +40,9 @@ func (suite *EtcdDependentSuite) TestKVGet() {
 	_, err = tmpKV.Put(ctx, "store/raccoon2/", "uwu2")
 	require.NoError(t, err)
 
-	val, err := kvs.Get(ctx, "raccoon1")
+	vals, err := kvs.Get(ctx, "raccoon1", WithPrefix(), WithSort(SortByKey, SortAscend))
 	require.NoError(t, err)
-	require.Equal(t, expected, val, "value read back should be the same")
+	require.Equal(t, []string{expected}, vals, "value read back should be the same")
 }
 
 func (suite *EtcdDependentSuite) TestKVGetErrorsOnNoKey() {
@@ -55,12 +55,12 @@ func (suite *EtcdDependentSuite) TestKVGetErrorsOnNoKey() {
 	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
-	val, err := kvs.Get(ctx, "raccoon")
+	vals, err := kvs.Get(ctx, "raccoon")
 	require.Equal(t, ErrNoKey, err, "error returned should be ErrNoKey")
-	require.Equal(t, val, "")
+	require.Nil(t, vals)
 }
 
-func (suite *EtcdDependentSuite) TestKVGetPrefix() {
+func (suite *EtcdDependentSuite) TestKVGetWithPrefix() {
 	suite.SetupTest()
 	t := suite.T()
 
@@ -85,12 +85,12 @@ func (suite *EtcdDependentSuite) TestKVGetPrefix() {
 	_, err = tmpKV.Put(ctx, "store/raccoon2", "uwu2")
 	require.NoError(t, err)
 
-	val, err := kvs.GetPrefix(ctx, "raccoon")
+	val, err := kvs.Get(ctx, "raccoon", WithPrefix())
 	require.NoError(t, err)
 	require.Equal(t, []string{"uwu1", "uwu2"}, val, "value read back should be the same")
 }
 
-func (suite *EtcdDependentSuite) TestKVGetPrefixErrorsOnNoKey() {
+func (suite *EtcdDependentSuite) TestKVGetWithMultipleOptions() {
 	suite.SetupTest()
 	t := suite.T()
 
@@ -100,9 +100,17 @@ func (suite *EtcdDependentSuite) TestKVGetPrefixErrorsOnNoKey() {
 	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
 	require.NoError(t, err)
 
-	val, err := kvs.GetPrefix(ctx, "raccoon")
-	require.Equal(t, ErrNoKey, err, "error returned should be ErrNoKey")
-	require.Nil(t, val)
+	expected := []string{"world1", "world2"}
+	err = kvs.Put(ctx, "hello1", expected[0])
+	require.NoError(t, err)
+	err = kvs.Put(ctx, "hello2", expected[1])
+	require.NoError(t, err)
+	err = kvs.Put(ctx, "hello3", "world3")
+	require.NoError(t, err)
+
+	vals, err := kvs.Get(ctx, "hello", WithPrefix(), WithLimit(2), WithSerializable())
+	require.Equal(t, vals, expected, "val returned should be expected")
+	require.NoError(t, err)
 }
 
 func (suite *EtcdDependentSuite) TestKVPut() {
@@ -119,8 +127,8 @@ func (suite *EtcdDependentSuite) TestKVPut() {
 	err = kvs.Put(ctx, "hello", expected)
 	require.NoError(t, err)
 
-	val, err := kvs.Get(ctx, "hello")
-	require.Equal(t, val, expected, "val returned should be expected")
+	vals, err := kvs.Get(ctx, "hello")
+	require.Equal(t, vals, []string{expected}, "val returned should be expected")
 	require.NoError(t, err)
 }
 
@@ -141,9 +149,9 @@ func (suite *EtcdDependentSuite) TestKVDelete() {
 	err = kvs.Delete(ctx, "hello")
 	require.NoError(t, err)
 
-	val, err := kvs.Get(ctx, "hello")
+	vals, err := kvs.Get(ctx, "hello")
 	require.Equal(t, err, ErrNoKey, "no key should be left after deletion")
-	require.Equal(t, val, "")
+	require.Nil(t, vals)
 }
 
 func (suite *EtcdDependentSuite) TestKVDeleteNoKey() {

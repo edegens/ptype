@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go.etcd.io/etcd/clientv3"
+	"path/filepath"
 	"time"
 )
 
@@ -34,21 +35,9 @@ func NewKVStore(ctx context.Context, etcdAddr string) (*KVStore, error) {
 }
 
 // Get returns the best matched value for the key provided
-func (kvs *KVStore) Get(ctx context.Context, key string) (string, error) {
-	getres, err := kvs.kv.Get(ctx, etcdKey(storePrefix, key), defaultGetOptions...)
-	if err != nil {
-		return "", fmt.Errorf("failed to get key %s: %w", key, err)
-	}
-
-	if len(getres.Kvs) == 0 {
-		return "", ErrNoKey
-	}
-	return string(getres.Kvs[0].Value), nil
-}
-
-// GetAll returns all values that correspond to the supplied key
-func (kvs *KVStore) GetPrefix(ctx context.Context, key string) ([]string, error) {
-	getres, err := kvs.kv.Get(ctx, fmt.Sprintf("%s/%s", storePrefix, key), defaultGetOptions...)
+func (kvs *KVStore) Get(ctx context.Context, key string, options ...clientv3.OpOption) ([]string, error) {
+	fetched := make([]string, 0)
+	getres, err := kvs.kv.Get(ctx, filepath.Join(storePrefix, key), options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get key %s: %w", key, err)
 	}
@@ -57,17 +46,15 @@ func (kvs *KVStore) GetPrefix(ctx context.Context, key string) ([]string, error)
 		return nil, ErrNoKey
 	}
 
-	gets := make([]string, 0)
-	for _, kvs := range getres.Kvs {
-		gets = append(gets, string(kvs.Value))
+	for _, str := range getres.Kvs {
+		fetched = append(fetched, string(str.Value))
 	}
-
-	return gets, nil
+	return fetched, nil
 }
 
 // Put sets the value for the given key
-func (kvs *KVStore) Put(ctx context.Context, key, value string) error {
-	_, err := kvs.kv.Put(ctx, etcdKey(storePrefix, key), value)
+func (kvs *KVStore) Put(ctx context.Context, key, value string, options ...clientv3.OpOption) error {
+	_, err := kvs.kv.Put(ctx, filepath.Join(storePrefix, key), value, options...)
 	if err != nil {
 		return fmt.Errorf("failed to put (key, value) (%s, %s): %w", key, value, err)
 	}
@@ -75,8 +62,8 @@ func (kvs *KVStore) Put(ctx context.Context, key, value string) error {
 }
 
 // Delete deletes the given key
-func (kvs *KVStore) Delete(ctx context.Context, key string) error {
-	delres, err := kvs.kv.Delete(ctx, etcdKey(storePrefix, key))
+func (kvs *KVStore) Delete(ctx context.Context, key string, options ...clientv3.OpOption) error {
+	delres, err := kvs.kv.Delete(ctx, filepath.Join(storePrefix, key), options...)
 	if err != nil {
 		return fmt.Errorf("failed to delete key %s: %w", key, err)
 	}
