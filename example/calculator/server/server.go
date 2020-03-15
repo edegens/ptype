@@ -24,7 +24,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	c, err := cluster.Join(context.Background(), cfg, []string{})
+	c, err := cluster.Join(context.Background(), cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

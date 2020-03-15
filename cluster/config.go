@@ -10,11 +10,12 @@ import (
 )
 
 type Config struct {
-	ServiceName    string `json:"service_name"`
-	NodeName       string `json:"node_name"`
-	Port           int    `json:"port"`
-	EtcdConfigFile string `json:"etcd_config_file"`
-	Debug          bool   `json:"debug"`
+	ServiceName              string   `json:"service_name"`
+	NodeName                 string   `json:"node_name"`
+	Port                     int      `json:"port"`
+	EtcdConfigFile           string   `json:"etcd_config_file"`
+	InitialClusterClientUrls []string `json"initial_cluster_client_urls"`
+	Debug                    bool     `json:"debug"`
 
 	etcdConfig *embed.Config
 }

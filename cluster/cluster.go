@@ -24,7 +24,7 @@ type Cluster struct {
 	localAddr string
 }
 
-func Join(ctx context.Context, cfg Config, clientUrls []string) (*Cluster, error) {
+func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	if cfg.Debug {
 		logger, err := zap.NewDevelopment()
 		if err != nil {
@@ -33,12 +33,26 @@ func Join(ctx context.Context, cfg Config, clientUrls []string) (*Cluster, error
 		zap.ReplaceGlobals(logger)
 	}
 
-	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagNew && len(clientUrls) == 0 {
-		clientUrls = urlsToString(cfg.etcdConfig.LCUrls)
-	} else if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting && len(clientUrls) == 0 {
-		return nil, fmt.Errorf("joining an existing cluster requires at least one client url from a member from the existing cluster")
+	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting {
+		if len(cfg.InitialClusterClientUrls) == 0 {
+			return nil, fmt.Errorf("joining an existing cluster requires at least one client url from a member from the existing cluster")
+		}
+		initialClusterClientCfg := clientv3.Config{
+			Endpoints:   cfg.InitialClusterClientUrls,
+			DialTimeout: 5 * time.Second,
+		}
+		initialClusterClient, err := clientv3.New(initialClusterClientCfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
+		}
+
+		cfg.etcdConfig.InitialCluster, err = memberAdd(ctx, initialClusterClient, *cfg.etcdConfig)
+		if err != nil {
+			return nil, err
+		}
 	}
 
+	clientUrls := urlsToString(cfg.etcdConfig.LCUrls)
 	clientCfg := clientv3.Config{
 		Endpoints:   clientUrls,
 		DialTimeout: 5 * time.Second,
@@ -46,13 +60,6 @@ func Join(ctx context.Context, cfg Config, clientUrls []string) (*Cluster, error
 	client, err := clientv3.New(clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
-	}
-
-	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting {
-		cfg.etcdConfig.InitialCluster, err = memberAdd(ctx, client, *cfg.etcdConfig)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	e, err := startEmbeddedEtcd(cfg.etcdConfig)
