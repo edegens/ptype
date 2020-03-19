@@ -251,6 +251,57 @@ func TestConnectionBalancer_roundRobinSelect(t *testing.T) {
 	})
 }
 
+func TestConnectionBalancer_mesh_network(t *testing.T) {
+	node, close := testRPCServer(t)
+	defer close()
+	node2, close := testRPCServer(t)
+	defer close()
+	mock := newMockRegistry([]Node{node, node2})
+
+	cfg := &ConnConfig{
+		MaxConnections:     0,
+		InitialNodeTimeout: testConnConfig.InitialNodeTimeout,
+		DebounceTime:       testConnConfig.DebounceTime,
+	}
+	c, err := newConnectionBalancer("", "foo", &mock, cfg)
+	require.NoError(t, err)
+	defer c.Close()
+
+	require.Equal(t, []Node{node, node2}, c.getSelectedNodes())
+
+	node3, close := testRPCServer(t)
+	defer close()
+	node4, close := testRPCServer(t)
+	defer close()
+
+	go func() {
+		mock.nodeChan <- []Node{node, node2, node3}
+	}()
+
+	select {
+	case err := <-c.errChan:
+		require.NoError(t, err)
+	default:
+	}
+
+	<-c.connsUpdated
+	require.Equal(t, []Node{node, node2, node3}, c.getSelectedNodes())
+
+	go func() {
+		mock.nodeChan <- []Node{node, node2, node3, node4}
+	}()
+
+	select {
+	case err := <-c.errChan:
+		require.NoError(t, err)
+	default:
+	}
+
+	<-c.connsUpdated
+	// all nodes are connected to
+	require.Equal(t, []Node{node, node2, node3, node4}, c.getSelectedNodes())
+}
+
 func testRPCServer(t *testing.T) (Node, func() error) {
 	ts := rpc.NewServer()
 	l, err := net.Listen("tcp", "127.0.0.1:0")

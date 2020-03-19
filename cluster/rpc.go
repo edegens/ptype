@@ -201,7 +201,7 @@ func (c *connectionBalancer) handleNewNodes(nodes []Node) error {
 //		index n = hash(host + n)
 // Where n the connection number being made.
 func (c *connectionBalancer) selectNodes(nodes []Node, maxConnections int) []Node {
-	if len(nodes) <= maxConnections {
+	if len(nodes) <= maxConnections || maxConnections == 0 {
 		return nodes
 	}
 
