@@ -56,6 +56,13 @@ var testConnConfig = &ConnConfig{
 	DebounceTime:       time.Second,
 }
 
+func TestClient_default_conn_config(t *testing.T) {
+	mock := newMockRegistry([]Node{})
+	c, err := newClient("", "foo", &mock, nil)
+	require.NoError(t, err)
+	require.Equal(t, DefaultConnConfig, c.conns.cfg)
+}
+
 func TestClient_Call(t *testing.T) {
 	ts := rpc.NewServer()
 	err := ts.Register(new(RPCTest))
