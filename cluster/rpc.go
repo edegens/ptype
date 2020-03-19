@@ -16,12 +16,32 @@ var (
 	ErrNoClientAvailable = errors.New("no client nodes available")
 )
 
+type ConnConfig struct {
+	// Max connections to unique nodes in the cluster. If the value 0 is used, then
+	// a mesh network will be formed (connection with every node).
+	MaxConnections int
+	// Timeout for establishing the initial connection with the service's nodes.
+	// Connections afterwards are done asynchronously and don't have a timeout.
+	InitialNodeTimeout time.Duration
+	// Duration to batch the latest node changes. Prevents thundering herd of changes.
+	DebounceTime time.Duration
+}
+
+var DefaultConnConfig = &ConnConfig{
+	MaxConnections:     3,
+	InitialNodeTimeout: 5 * time.Second,
+	DebounceTime:       3 * time.Second,
+}
+
 type Client struct {
 	conns *connectionBalancer
 }
 
-func newClient(host string, serviceName string, r Registry) (*Client, error) {
-	conns, err := newConnectionBalancer(host, serviceName, r)
+func newClient(host, serviceName string, r Registry, cfg *ConnConfig) (*Client, error) {
+	if cfg == nil {
+		cfg = DefaultConnConfig
+	}
+	conns, err := newConnectionBalancer(host, serviceName, r, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -54,13 +74,8 @@ func (c *Client) ConnectionErrs() chan error {
 	return c.conns.errChan
 }
 
-const (
-	defaultMaxConnections     = 3
-	defaultInitialNodeTimeout = 5 * time.Second
-	defaultDebounceTime       = 3 * time.Second
-)
-
 type connectionBalancer struct {
+	cfg       *ConnConfig
 	localAddr string
 	seq       uint64
 
@@ -74,10 +89,11 @@ type connectionBalancer struct {
 	waitGroup sync.WaitGroup
 }
 
-func newConnectionBalancer(host string, serviceName string, r Registry) (*connectionBalancer, error) {
+func newConnectionBalancer(host, serviceName string, r Registry, cfg *ConnConfig) (*connectionBalancer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	c := &connectionBalancer{
+		cfg:          cfg,
 		localAddr:    host,
 		clients:      []*rpc.Client{},
 		connsUpdated: make(chan struct{}, 5),
@@ -90,7 +106,7 @@ func newConnectionBalancer(host string, serviceName string, r Registry) (*connec
 	var initialNodes []Node
 	select {
 	case initialNodes = <-nodesChan:
-	case <-time.After(defaultInitialNodeTimeout):
+	case <-time.After(c.cfg.InitialNodeTimeout):
 		return nil, fmt.Errorf("no initial nodes provided for %v", serviceName)
 	}
 
@@ -141,7 +157,7 @@ func (c *connectionBalancer) watchForNewNodes(ctx context.Context, nodesChan cha
 			}
 			newNodes = nodes
 			continue
-		case <-time.After(defaultDebounceTime):
+		case <-time.After(c.cfg.DebounceTime):
 			if newNodes == nil {
 				continue
 			}
@@ -159,7 +175,7 @@ func (c *connectionBalancer) watchForNewNodes(ctx context.Context, nodesChan cha
 }
 
 func (c *connectionBalancer) handleNewNodes(nodes []Node) error {
-	selectedNodes := c.selectNodes(nodes, defaultMaxConnections)
+	selectedNodes := c.selectNodes(nodes, c.cfg.MaxConnections)
 	clients, err := c.connectToNodes(selectedNodes)
 	if err != nil {
 		return err

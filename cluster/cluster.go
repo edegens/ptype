@@ -103,8 +103,8 @@ func (c *Cluster) Close() error {
 	return nil
 }
 
-func (c *Cluster) NewClient(serviceName string) (*Client, error) {
-	return newClient(c.localAddr, serviceName, c.Registry)
+func (c *Cluster) NewClient(serviceName string, cfg *ConnConfig) (*Client, error) {
+	return newClient(c.localAddr, serviceName, c.Registry, cfg)
 }
 
 func memberAdd(ctx context.Context, client *clientv3.Client, cfg embed.Config) (string, error) {
