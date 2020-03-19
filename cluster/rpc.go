@@ -25,16 +25,21 @@ type ConnConfig struct {
 	InitialNodeTimeout time.Duration
 	// Duration to batch the latest node changes. Prevents thundering herd of changes.
 	DebounceTime time.Duration
+	// Retries is the number of times a request is attempted to get a success. The
+	// retires are possibliy done on different nodes.
+	Retries int
 }
 
 var DefaultConnConfig = &ConnConfig{
 	MaxConnections:     3,
 	InitialNodeTimeout: 5 * time.Second,
 	DebounceTime:       3 * time.Second,
+	Retries:            1,
 }
 
 type Client struct {
 	conns *connectionBalancer
+	cfg   *ConnConfig
 }
 
 func newClient(host, serviceName string, r Registry, cfg *ConnConfig) (*Client, error) {
@@ -47,23 +52,67 @@ func newClient(host, serviceName string, r Registry, cfg *ConnConfig) (*Client, 
 	}
 	return &Client{
 		conns: conns,
+		cfg:   cfg,
 	}, nil
 }
 
 func (c *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	client := c.conns.Get()
-	if client == nil {
-		return ErrNoClientAvailable
-	}
-	return client.Call(serviceMethod, args, reply)
+	return withRetry(c.cfg.Retries, func() error {
+		client := c.conns.Get()
+		if client == nil {
+			return ErrNoClientAvailable
+		}
+		return client.Call(serviceMethod, args, reply)
+	})
 }
 
 func (c *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *rpc.Call) *rpc.Call {
-	client := c.conns.Get()
-	if client == nil {
-		return &rpc.Call{Error: ErrNoClientAvailable}
+	doneWrapper := make(chan *rpc.Call, 10)
+
+	if done == nil {
+		done = make(chan *rpc.Call, 10)
 	}
-	return client.Go(serviceMethod, args, reply, done)
+	call := &rpc.Call{
+		ServiceMethod: serviceMethod,
+		Args:          args,
+		Reply:         reply,
+		Done:          done,
+	}
+
+	go func() {
+		err := withRetry(c.cfg.Retries, func() error {
+			client := c.conns.Get()
+			if client == nil {
+				return ErrNoClientAvailable
+			}
+			client.Go(serviceMethod, args, reply, doneWrapper)
+
+			c := <-doneWrapper
+			if call.Error == nil {
+				done <- c
+				return nil
+			}
+			return c.Error
+		})
+
+		if err != nil {
+			call.Error = err
+			done <- call
+		}
+	}()
+
+	return call
+}
+
+func withRetry(maxRetries int, f func() error) error {
+	for {
+		retries := 0
+		err := f()
+		if err == nil || retries >= maxRetries {
+			return err
+		}
+		retries++
+	}
 }
 
 func (c *Client) Close() error {
