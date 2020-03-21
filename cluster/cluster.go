@@ -159,6 +159,7 @@ func startEmbeddedEtcd(ctx context.Context, cfg Config) (*embed.Etcd, error) {
 	}
 
 	<-e.Server.ReadyNotify()
+	zap.S().Debugw("etcd started", "id", e.Server.ID(), "learner", e.Server.IsLearner())
 	if !e.Server.IsLearner() {
 		return e, nil
 	}
@@ -173,10 +174,11 @@ func startEmbeddedEtcd(ctx context.Context, cfg Config) (*embed.Etcd, error) {
 	for {
 		_, err := initialClusterClient.MemberPromote(ctx, uint64(e.Server.ID()))
 		if err == nil {
+			zap.S().Debugw("etcd learner successfully promoted", "id", e.Server.ID())
 			return e, nil
 		}
 		if err.Error() == etcdserver.ErrLearnerNotReady.Error() {
-			zap.S().Debug("learner not ready to be promoted")
+			zap.S().Debugw("learner not ready to be promoted", "id", e.Server.ID())
 			time.Sleep(2 * time.Second)
 			continue
 		}
