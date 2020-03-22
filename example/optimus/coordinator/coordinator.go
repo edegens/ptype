@@ -69,7 +69,7 @@ func splitWork(target int, replyChan chan int) {
 	}
 }
 
-func checkRange(min int, max int, target int, replyChan chan int) {
+func checkRange(min, max, target int, replyChan chan int) {
 	args := &prime.Args{
 		Min:    min,
 		Max:    max,
