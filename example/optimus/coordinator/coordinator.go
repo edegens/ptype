@@ -49,7 +49,10 @@ func test(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "invalid_http_method")
 		return
 	}
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	target, _ := strconv.Atoi(r.Form.Get("target"))
 
@@ -58,7 +61,7 @@ func test(w http.ResponseWriter, r *http.Request) {
 	splitWork(target, replyChan)
 	reply := watchReplies(target, replyChan)
 
-	fmt.Fprintf(w, strconv.Itoa(reply))
+	fmt.Fprint(w, strconv.Itoa(reply))
 }
 
 func splitWork(target int, replyChan chan int) {
