@@ -26,3 +26,5 @@ initial-cluster-token: 'etcd-cluster'
 
 # Initial cluster state ('new' or 'existing').
 initial-cluster-state: 'new'
+
+strict-reconfig-check: false
