@@ -34,7 +34,7 @@ func main() {
 
 	// let the worker spin up after etcd
 	time.Sleep(500 * time.Millisecond)
-	worker, err = c.NewClient("prime_worker")
+	worker, err = c.NewClient("prime_worker", nil)
 	if err != nil {
 		log.Fatal(err)
 	}
