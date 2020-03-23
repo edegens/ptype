@@ -30,7 +30,7 @@ func main() {
 
 	// let the http server spin up after etcd
 	time.Sleep(500 * time.Millisecond)
-	client, err := c.NewClient("calculator")
+	client, err := c.NewClient("calculator", nil)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -20,7 +20,7 @@ func TestEtcdDependentSuite(t *testing.T) {
 
 type EtcdDependentSuite struct {
 	suite.Suite
-	testEtcdAddr string
+	testEtcdAddr []string
 	cleanup      func()
 }
 
@@ -235,7 +235,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_nodes() {
 	require.Equal(t, expected, actual)
 }
 
-func startTestEtcd() (string, func()) {
+func startTestEtcd() ([]string, func()) {
 	cfg := embed.NewConfig()
 
 	tmp, err := ioutil.TempDir("", "test_etcd")
@@ -249,7 +249,7 @@ func startTestEtcd() (string, func()) {
 		log.Fatal(err)
 	}
 
-	addr := cfg.LCUrls[0].String()
+	addr := urlsToString(cfg.LCUrls)
 	return addr, func() {
 		e.Close()
 		<-e.Server.StopNotify()
@@ -257,8 +257,8 @@ func startTestEtcd() (string, func()) {
 	}
 }
 
-func cleanEtcdDir(t *testing.T, testEtcdAddr string) {
-	c, err := clientv3.New(clientv3.Config{Endpoints: []string{testEtcdAddr}})
+func cleanEtcdDir(t *testing.T, testEtcdAddr []string) {
+	c, err := clientv3.New(clientv3.Config{Endpoints: testEtcdAddr})
 	require.NoError(t, err)
 	KV := clientv3.NewKV(c)
 	// wipe services dir for every test

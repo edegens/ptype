@@ -50,6 +50,19 @@ func (r *RPCTest) Go(x string, y *string) error {
 	return nil
 }
 
+var testConnConfig = &ConnConfig{
+	MaxConnections:     DefaultConnConfig.MaxConnections,
+	InitialNodeTimeout: time.Second,
+	DebounceTime:       time.Second,
+}
+
+func TestClient_default_conn_config(t *testing.T) {
+	mock := newMockRegistry([]Node{})
+	c, err := newClient("", "foo", &mock, nil)
+	require.NoError(t, err)
+	require.Equal(t, DefaultConnConfig, c.conns.cfg)
+}
+
 func TestClient_Call(t *testing.T) {
 	ts := rpc.NewServer()
 	err := ts.Register(new(RPCTest))
@@ -66,7 +79,7 @@ func TestClient_Call(t *testing.T) {
 		Port:    l.Addr().(*net.TCPAddr).Port,
 	}
 	mock := newMockRegistry([]Node{node})
-	c, err := newClient("", "foo", &mock)
+	c, err := newClient("", "foo", &mock, testConnConfig)
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -92,7 +105,7 @@ func TestClient_Go(t *testing.T) {
 		Port:    l.Addr().(*net.TCPAddr).Port,
 	}
 	mock := newMockRegistry([]Node{node})
-	c, err := newClient("", "foo", &mock)
+	c, err := newClient("", "foo", &mock, testConnConfig)
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -110,7 +123,7 @@ func TestNewConnectionBalancer_successul_initial_connect(t *testing.T) {
 	defer close()
 
 	mock := newMockRegistry([]Node{node})
-	c, err := newConnectionBalancer("", "foo", &mock)
+	c, err := newConnectionBalancer("", "foo", &mock, testConnConfig)
 	require.NoError(t, err)
 	defer c.Close()
 
@@ -122,14 +135,14 @@ func TestNewConnectionBalancer_with_no_available_server(t *testing.T) {
 	mock := mockRegistry{
 		nodeChan: make(chan []Node),
 	}
-	c, err := newConnectionBalancer("", "foo", &mock)
+	c, err := newConnectionBalancer("", "foo", &mock, testConnConfig)
 	require.Error(t, err)
 	require.Nil(t, c)
 }
 
 func TestNewConnectionBalancer_with_servers_failing_to_connect(t *testing.T) {
 	mock := newMockRegistry([]Node{{Address: "127.0.0.1", Port: 1234}})
-	c, err := newConnectionBalancer("", "foo", &mock)
+	c, err := newConnectionBalancer("", "foo", &mock, testConnConfig)
 	require.Error(t, err)
 	require.Nil(t, c)
 }
@@ -139,7 +152,7 @@ func TestConnectionBalancer_watchForNewNodes(t *testing.T) {
 	defer close()
 	mock := newMockRegistry([]Node{node})
 
-	c, err := newConnectionBalancer("", "foo", &mock)
+	c, err := newConnectionBalancer("", "foo", &mock, testConnConfig)
 	require.NoError(t, err)
 	defer c.Close()
 
