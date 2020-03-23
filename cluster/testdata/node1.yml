@@ -28,3 +28,5 @@ initial-cluster-token: 'etcd-cluster'
 initial-cluster-state: 'new'
 
 strict-reconfig-check: false
+
+logger: 'zap'

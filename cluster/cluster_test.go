@@ -79,6 +79,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		}
 		memberCfg.etcdConfig.Name = "node2"
 		memberCfg.etcdConfig.Dir = "tmp2"
+		memberCfg.etcdConfig.Logger = "zap"
 		memberCfg.etcdConfig.LPUrls = []url.URL{*LPUrl}
 		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl}
 		memberCfg.etcdConfig.APUrls = []url.URL{*LPUrl}
@@ -114,6 +115,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		}
 		memberCfg.etcdConfig.Name = "node3"
 		memberCfg.etcdConfig.Dir = "tmp3"
+		memberCfg.etcdConfig.Logger = "zap"
 		memberCfg.etcdConfig.LPUrls = []url.URL{*LPUrl, *LPUrl2}
 		memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl, *LCUrl2}
 		memberCfg.etcdConfig.APUrls = []url.URL{*LPUrl, *LPUrl2}
@@ -144,6 +146,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 			}
 			memberCfg.etcdConfig.Name = "node4"
 			memberCfg.etcdConfig.Dir = "tmp4"
+			memberCfg.etcdConfig.Logger = "zap"
 			memberCfg.etcdConfig.LPUrls = []url.URL{*LPUrl}
 			memberCfg.etcdConfig.LCUrls = []url.URL{*LCUrl}
 			memberCfg.etcdConfig.APUrls = []url.URL{*LPUrl}

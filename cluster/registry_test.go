@@ -237,6 +237,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_nodes() {
 
 func startTestEtcd() ([]string, func()) {
 	cfg := embed.NewConfig()
+	cfg.Logger = "zap"
 
 	tmp, err := ioutil.TempDir("", "test_etcd")
 	cfg.Dir = tmp
