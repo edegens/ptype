@@ -1,0 +1,4 @@
+service_name: prime_worker
+node_name: prime_worker_2
+port: 8002
+etcd_config_file: worker2_etcd.yaml

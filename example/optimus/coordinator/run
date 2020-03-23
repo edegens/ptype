@@ -1,0 +1,2 @@
+#!/bin/bash
+CONFIG=./coordinator.yaml go run coordinator.go

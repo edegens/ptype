@@ -1,0 +1,2 @@
+#!/bin/bash
+CONFIG=./prime_worker.yaml go run worker.go
