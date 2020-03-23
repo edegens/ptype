@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/embed"
+	"go.etcd.io/etcd/etcdserver/etcdserverpb"
 	"go.uber.org/zap"
 )
 

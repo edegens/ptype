@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/coreos/etcd/etcdserver"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.etcd.io/etcd/embed"
+	"go.etcd.io/etcd/etcdserver"
 )
 
 func TestClusterSuite(t *testing.T) {
