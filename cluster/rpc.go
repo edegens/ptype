@@ -34,7 +34,7 @@ var DefaultConnConfig = &ConnConfig{
 	MaxConnections:     3,
 	InitialNodeTimeout: 5 * time.Second,
 	DebounceTime:       3 * time.Second,
-	Retries:            1,
+	Retries:            2,
 }
 
 type Client struct {
