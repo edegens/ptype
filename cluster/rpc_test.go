@@ -2,9 +2,11 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/rpc"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -50,6 +52,30 @@ func (r *RPCTest) Go(x string, y *string) error {
 	return nil
 }
 
+type RPCRetryTest struct {
+	called          uint32
+	callsBeforePass uint32
+}
+
+func (r *RPCRetryTest) Call(arg string, called *int) error {
+	atomic.AddUint32(&r.called, 1)
+	if r.called >= r.callsBeforePass {
+		*called = int(r.called)
+		return nil
+	}
+	return errors.New("failed")
+}
+
+func (r *RPCRetryTest) Go(arg string, called *int) error {
+	time.Sleep(time.Second)
+	atomic.AddUint32(&r.called, 1)
+	if r.called >= r.callsBeforePass {
+		*called = int(r.called)
+		return nil
+	}
+	return errors.New("failed")
+}
+
 var testConnConfig = &ConnConfig{
 	MaxConnections:     DefaultConnConfig.MaxConnections,
 	InitialNodeTimeout: time.Second,
@@ -89,6 +115,76 @@ func TestClient_Call(t *testing.T) {
 	require.Equal(t, "who's joe", reply)
 }
 
+func TestClient_Call_with_retry_multi_node(t *testing.T) {
+	ts1 := rpc.NewServer()
+	err := ts1.Register(&RPCRetryTest{callsBeforePass: 2})
+	require.NoError(t, err)
+
+	ts2 := rpc.NewServer()
+	err = ts2.Register(&RPCRetryTest{callsBeforePass: 0})
+	require.NoError(t, err)
+
+	l1, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l1.Close()
+
+	go func() { _ = http.Serve(l1, ts1) }()
+
+	l2, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l1.Close()
+
+	go func() { _ = http.Serve(l2, ts2) }()
+
+	mock := newMockRegistry([]Node{
+		{
+			Address: "127.0.0.1",
+			Port:    l1.Addr().(*net.TCPAddr).Port,
+		},
+		{
+			Address: "127.0.0.1",
+			Port:    l2.Addr().(*net.TCPAddr).Port,
+		},
+	})
+
+	c, err := newClient("", "foo", &mock, testConnConfig)
+	require.NoError(t, err)
+	defer c.Close()
+
+	var calls int
+	err = c.Call("RPCRetryTest.Call", "", &calls)
+	require.NoError(t, err)
+	require.Equal(t, 1, calls)
+}
+
+func TestClient_Call_with_retry_error(t *testing.T) {
+	ts1 := rpc.NewServer()
+	err := ts1.Register(&RPCRetryTest{callsBeforePass: 10})
+	require.NoError(t, err)
+
+	l1, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l1.Close()
+
+	go func() { _ = http.Serve(l1, ts1) }()
+
+	mock := newMockRegistry([]Node{
+		{
+			Address: "127.0.0.1",
+			Port:    l1.Addr().(*net.TCPAddr).Port,
+		},
+	})
+
+	c, err := newClient("", "foo", &mock, testConnConfig)
+	require.NoError(t, err)
+	defer c.Close()
+
+	var calls int
+	err = c.Call("RPCRetryTest.Call", "", &calls)
+	require.Error(t, err)
+	require.Equal(t, 0, calls)
+}
+
 func TestClient_Go(t *testing.T) {
 	ts := rpc.NewServer()
 	err := ts.Register(new(RPCTest))
@@ -116,6 +212,83 @@ func TestClient_Go(t *testing.T) {
 
 	<-call.Done
 	require.Equal(t, "who's joe", reply)
+}
+
+func TestClient_Go_with_retry_multi_node(t *testing.T) {
+	ts1 := rpc.NewServer()
+	err := ts1.Register(&RPCRetryTest{callsBeforePass: 2})
+	require.NoError(t, err)
+
+	ts2 := rpc.NewServer()
+	err = ts2.Register(&RPCRetryTest{callsBeforePass: 0})
+	require.NoError(t, err)
+
+	l1, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l1.Close()
+
+	go func() { _ = http.Serve(l1, ts1) }()
+
+	l2, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l1.Close()
+
+	go func() { _ = http.Serve(l2, ts2) }()
+
+	mock := newMockRegistry([]Node{
+		{
+			Address: "127.0.0.1",
+			Port:    l1.Addr().(*net.TCPAddr).Port,
+		},
+		{
+			Address: "127.0.0.1",
+			Port:    l2.Addr().(*net.TCPAddr).Port,
+		},
+	})
+
+	c, err := newClient("", "foo", &mock, testConnConfig)
+	require.NoError(t, err)
+	defer c.Close()
+
+	var calls int
+	call := c.Go("RPCRetryTest.Go", "", &calls, nil)
+	require.NotNil(t, call)
+	require.NoError(t, call.Error)
+
+	<-call.Done
+	require.Equal(t, 1, calls)
+}
+
+func TestClient_Go_with_retry_error(t *testing.T) {
+	ts1 := rpc.NewServer()
+	err := ts1.Register(&RPCRetryTest{callsBeforePass: 10})
+	require.NoError(t, err)
+
+	l1, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l1.Close()
+
+	go func() { _ = http.Serve(l1, ts1) }()
+
+	mock := newMockRegistry([]Node{
+		{
+			Address: "127.0.0.1",
+			Port:    l1.Addr().(*net.TCPAddr).Port,
+		},
+	})
+
+	c, err := newClient("", "foo", &mock, testConnConfig)
+	require.NoError(t, err)
+	defer c.Close()
+
+	var calls int
+	call := c.Go("RPCRetryTest.Go", "", &calls, nil)
+	require.NotNil(t, call)
+	require.NoError(t, call.Error)
+
+	resp := <-call.Done
+	require.Error(t, resp.Error)
+	require.Equal(t, 0, calls)
 }
 
 func TestNewConnectionBalancer_successul_initial_connect(t *testing.T) {
@@ -249,6 +422,57 @@ func TestConnectionBalancer_roundRobinSelect(t *testing.T) {
 			set[client] = struct{}{}
 		}
 	})
+}
+
+func TestConnectionBalancer_mesh_network(t *testing.T) {
+	node, close := testRPCServer(t)
+	defer close()
+	node2, close := testRPCServer(t)
+	defer close()
+	mock := newMockRegistry([]Node{node, node2})
+
+	cfg := &ConnConfig{
+		MaxConnections:     0,
+		InitialNodeTimeout: testConnConfig.InitialNodeTimeout,
+		DebounceTime:       testConnConfig.DebounceTime,
+	}
+	c, err := newConnectionBalancer("", "foo", &mock, cfg)
+	require.NoError(t, err)
+	defer c.Close()
+
+	require.Equal(t, []Node{node, node2}, c.getSelectedNodes())
+
+	node3, close := testRPCServer(t)
+	defer close()
+	node4, close := testRPCServer(t)
+	defer close()
+
+	go func() {
+		mock.nodeChan <- []Node{node, node2, node3}
+	}()
+
+	select {
+	case err := <-c.errChan:
+		require.NoError(t, err)
+	default:
+	}
+
+	<-c.connsUpdated
+	require.Equal(t, []Node{node, node2, node3}, c.getSelectedNodes())
+
+	go func() {
+		mock.nodeChan <- []Node{node, node2, node3, node4}
+	}()
+
+	select {
+	case err := <-c.errChan:
+		require.NoError(t, err)
+	default:
+	}
+
+	<-c.connsUpdated
+	// all nodes are connected to
+	require.Equal(t, []Node{node, node2, node3, node4}, c.getSelectedNodes())
 }
 
 func testRPCServer(t *testing.T) (Node, func() error) {
