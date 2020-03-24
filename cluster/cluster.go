@@ -153,6 +153,9 @@ func urlsToString(urls []url.URL) []string {
 }
 
 func startEmbeddedEtcd(ctx context.Context, cfg Config) (*embed.Etcd, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	e, err := embed.StartEtcd(cfg.etcdConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start etcd: %w", err)
