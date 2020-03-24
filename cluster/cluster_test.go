@@ -90,7 +90,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		require.NoError(t, err)
 		defer c2.Close()
 
-		members, err := c2.MemberList(ctx)
+		members, err := c.MemberList(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(members))
 
@@ -126,7 +126,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 		require.NoError(t, err)
 		defer c3.Close()
 
-		members, err = c3.MemberList(ctx)
+		members, err = c.MemberList(ctx)
 		require.NoError(t, err)
 		require.Equal(t, 3, len(members))
 
@@ -159,7 +159,7 @@ func (suite *ClusterSuite) TestMemberAdd() {
 			require.NoError(t, err)
 			defer c4.Close()
 
-			members, err := c4.MemberList(ctx)
+			members, err := c.MemberList(ctx)
 			require.NoError(t, err)
 			require.Equal(t, 4, len(members))
 		})
