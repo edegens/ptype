@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coreos/etcd/etcdserver/etcdserverpb"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/embed"
+	"go.etcd.io/etcd/etcdserver"
+	"go.etcd.io/etcd/etcdserver/etcdserverpb"
 	"go.uber.org/zap"
 )
 
@@ -34,37 +35,25 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 	}
 
 	if cfg.etcdConfig.ClusterState == embed.ClusterStateFlagExisting {
-		if len(cfg.InitialClusterClientUrls) == 0 {
-			return nil, fmt.Errorf("joining an existing cluster requires at least one client url from a member from the existing cluster")
-		}
-		initialClusterClientCfg := clientv3.Config{
-			Endpoints:   cfg.InitialClusterClientUrls,
-			DialTimeout: 5 * time.Second,
-		}
-		initialClusterClient, err := clientv3.New(initialClusterClientCfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
-		}
-
-		cfg.etcdConfig.InitialCluster, err = memberAdd(ctx, initialClusterClient, *cfg.etcdConfig)
+		initialCluster, err := joinExistingCluster(ctx, cfg)
 		if err != nil {
 			return nil, err
 		}
+		cfg.etcdConfig.InitialCluster = initialCluster
+	}
+
+	e, err := startEmbeddedEtcd(ctx, cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	clientUrls := urlsToString(cfg.etcdConfig.LCUrls)
-	clientCfg := clientv3.Config{
+	localClient, err := clientv3.New(clientv3.Config{
 		Endpoints:   clientUrls,
 		DialTimeout: 5 * time.Second,
-	}
-	client, err := clientv3.New(clientCfg)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
-	}
-
-	e, err := startEmbeddedEtcd(cfg.etcdConfig)
-	if err != nil {
-		return nil, err
 	}
 
 	registry, err := newEtcdRegistry(ctx, clientUrls)
@@ -82,7 +71,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 
 	return &Cluster{
 		Registry:  registry,
-		client:    client,
+		client:    localClient,
 		etcd:      e,
 		localAddr: addr,
 	}, nil
@@ -107,13 +96,28 @@ func (c *Cluster) NewClient(serviceName string, cfg *ConnConfig) (*Client, error
 	return newClient(c.localAddr, serviceName, c.Registry, cfg)
 }
 
+func joinExistingCluster(ctx context.Context, cfg Config) (initalCluster string, err error) {
+	if len(cfg.InitialClusterClientUrls) == 0 {
+		return "", fmt.Errorf("joining an existing cluster requires at least one client url from a member from the existing cluster")
+	}
+	initialClusterClient, err := clientv3.New(clientv3.Config{
+		Endpoints:   cfg.InitialClusterClientUrls,
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create etcd client from config: %w", err)
+	}
+
+	return memberAdd(ctx, initialClusterClient, *cfg.etcdConfig)
+}
+
 func memberAdd(ctx context.Context, client *clientv3.Client, cfg embed.Config) (string, error) {
 	peerUrlStrings := make([]string, len(cfg.LPUrls))
 	for i, url := range cfg.LPUrls {
 		peerUrlStrings[i] = url.String()
 	}
 
-	mresp, err := client.MemberAdd(ctx, peerUrlStrings)
+	mresp, err := client.MemberAddAsLearner(ctx, peerUrlStrings)
 	if err != nil {
 		return "", fmt.Errorf("failed to add member with peerURLs %v: %w", cfg.LPUrls, err)
 	}
@@ -148,14 +152,41 @@ func urlsToString(urls []url.URL) []string {
 	return urlStrings
 }
 
-func startEmbeddedEtcd(cfg *embed.Config) (*embed.Etcd, error) {
-	e, err := embed.StartEtcd(cfg)
+func startEmbeddedEtcd(ctx context.Context, cfg Config) (*embed.Etcd, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	e, err := embed.StartEtcd(cfg.etcdConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start etcd: %w", err)
 	}
 
 	<-e.Server.ReadyNotify()
-	return e, nil
+	zap.S().Debugw("etcd started", "id", e.Server.ID(), "learner", e.Server.IsLearner())
+	if !e.Server.IsLearner() {
+		return e, nil
+	}
+
+	initialClusterClient, err := clientv3.New(clientv3.Config{
+		Endpoints:   cfg.InitialClusterClientUrls,
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create etcd client from config: %w", err)
+	}
+	for {
+		_, err := initialClusterClient.MemberPromote(ctx, uint64(e.Server.ID()))
+		if err == nil {
+			zap.S().Debugw("etcd learner successfully promoted", "id", e.Server.ID())
+			return e, nil
+		}
+		if err.Error() == etcdserver.ErrLearnerNotReady.Error() {
+			zap.S().Debugw("learner not ready to be promoted", "id", e.Server.ID())
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		return nil, fmt.Errorf("can't promote member: %w", err)
+	}
 }
 
 func getIP() (string, error) {

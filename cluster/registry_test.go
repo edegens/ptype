@@ -237,6 +237,7 @@ func (suite *EtcdDependentSuite) TestEtcdRegistry_nodes() {
 
 func startTestEtcd() ([]string, func()) {
 	cfg := embed.NewConfig()
+	cfg.Logger = "zap"
 
 	tmp, err := ioutil.TempDir("", "test_etcd")
 	cfg.Dir = tmp
@@ -244,10 +245,11 @@ func startTestEtcd() ([]string, func()) {
 		log.Fatal(err)
 	}
 
-	e, err := startEmbeddedEtcd(cfg)
+	e, err := embed.StartEtcd(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
+	<-e.Server.ReadyNotify()
 
 	addr := urlsToString(cfg.LCUrls)
 	return addr, func() {
