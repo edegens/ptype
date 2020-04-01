@@ -9,7 +9,10 @@ import (
 )
 
 func TestNewKVStore(t *testing.T) {
-	store, err := NewKVStore(context.Background(), []string{""})
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	store, err := NewKVStore(context.Background(), nodeCfg)
 	require.NoError(t, err)
 	require.NotNil(t, store)
 }
@@ -21,7 +24,10 @@ func (suite *EtcdDependentSuite) TestKVGet() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	// set up raw connection for test setup
@@ -52,7 +58,10 @@ func (suite *EtcdDependentSuite) TestKVGetErrorsOnNoKey() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	vals, err := kvs.Get(ctx, "raccoon")
@@ -67,7 +76,10 @@ func (suite *EtcdDependentSuite) TestKVGetWithPrefix() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	// set up raw connection for test setup
@@ -97,7 +109,10 @@ func (suite *EtcdDependentSuite) TestKVGetWithMultipleOptions() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	expected := []string{"world1", "world2"}
@@ -120,7 +135,10 @@ func (suite *EtcdDependentSuite) TestKVPut() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	expected := "world"
@@ -139,7 +157,10 @@ func (suite *EtcdDependentSuite) TestKVDelete() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	expected := "world"
@@ -161,7 +182,10 @@ func (suite *EtcdDependentSuite) TestKVDeleteNoKey() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	kvs, err := NewKVStore(ctx, suite.testEtcdAddr)
+	nodeCfg, err := ConfigFromFile("./testdata/ping.yml")
+	require.NoError(t, err)
+
+	kvs, err := NewKVStore(ctx, nodeCfg)
 	require.NoError(t, err)
 
 	err = kvs.Delete(ctx, "hello")

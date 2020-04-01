@@ -19,7 +19,9 @@ type KVStore struct {
 	kv clientv3.KV
 }
 
-func NewKVStore(ctx context.Context, etcdAddrs []string) (*KVStore, error) {
+func NewKVStore(ctx context.Context, clusterCfg Config) (*KVStore, error) {
+	etcdAddrs := urlsToString(clusterCfg.etcdConfig.LCUrls)
+
 	cfg := clientv3.Config{
 		Endpoints:   etcdAddrs,
 		DialTimeout: 5 * time.Second,
