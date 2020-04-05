@@ -61,6 +61,11 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 		return nil, err
 	}
 
+	store, err := newKVStore(ctx, clientUrls)
+	if err != nil {
+		return nil, err
+	}
+
 	addr, err := getIP()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read hostname: %w", err)
@@ -71,6 +76,7 @@ func Join(ctx context.Context, cfg Config) (*Cluster, error) {
 
 	return &Cluster{
 		Registry:  registry,
+		Store:     store,
 		client:    localClient,
 		etcd:      e,
 		localAddr: addr,
